@@ -15,6 +15,7 @@ import Announcements from './pages/Announcements';
 import Events from './pages/Events';
 import UserManagement from './pages/UserManagement';
 import Settings from './pages/Settings';
+import CorporateCollaborations from './pages/CorporateCollaborations';
 import { User, UserRole } from './types';
 
 function App() {
@@ -70,6 +71,7 @@ function App() {
               <Route path="/library" element={<Library user={user} />} />
               <Route path="/announcements" element={<Announcements user={user} />} />
               <Route path="/events" element={<Events user={user} />} />
+              <Route path="/corporate" element={<CorporateCollaborations />} />
               <Route path="/users" element={<UserManagement user={user} />} />
               <Route path="/settings" element={<Settings user={user} />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

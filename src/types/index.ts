@@ -320,3 +320,36 @@ export interface UserProfile extends User {
   createdBy: string;
   permissions: string[];
 }
+
+export interface Landlord {
+  id: string;
+  name: string;
+  boarding_house_name: string;
+  cell_line?: string;
+  landline?: string;
+  address?: string;
+  email?: string;
+  geolocation?: string;
+  total_students: number;
+  lease_agreement_signed: boolean;
+  comments?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Institution {
+  id: string;
+  liaison_name: string;
+  liaison_role?: string;
+  cell_line?: string;
+  institution_direct_line?: string;
+  institution_name: string;
+  department?: string;
+  liaison_email?: string;
+  institution_email?: string;
+  geolocation?: string;
+  mou_signed: boolean;
+  comments?: string;
+  created_at: string;
+  updated_at: string;
+}

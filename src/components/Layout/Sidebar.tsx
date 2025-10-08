@@ -1,19 +1,20 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  Home, 
-  Users, 
-  DollarSign, 
-  CheckSquare, 
-  AlertTriangle, 
-  FileText, 
+import {
+  Home,
+  Users,
+  DollarSign,
+  CheckSquare,
+  AlertTriangle,
+  FileText,
   FolderOpen,
   Settings,
   X,
   GraduationCap,
   BookOpen,
   Megaphone,
-  Calendar
+  Calendar,
+  Handshake
 } from 'lucide-react';
 import { User } from '../../types';
 
@@ -35,6 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, isOpen, onToggle }) => {
     { name: 'Library', href: '/library', icon: BookOpen },
     { name: 'Announcements', href: '/announcements', icon: Megaphone },
     { name: 'Excel Beyond Events', href: '/events', icon: Calendar },
+    { name: 'Corporate Collaborations', href: '/corporate', icon: Handshake },
     { name: 'User Management', href: '/users', icon: Users },
   ];
 
