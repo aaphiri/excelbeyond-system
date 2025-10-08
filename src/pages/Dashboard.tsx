@@ -1,15 +1,16 @@
-import React from 'react';
-import { 
-  Users, 
-  DollarSign, 
-  AlertTriangle, 
-  CheckSquare, 
-  TrendingUp, 
+import React, { useState, useEffect } from 'react';
+import {
+  Users,
+  DollarSign,
+  AlertTriangle,
+  CheckSquare,
+  TrendingUp,
   Calendar,
   GraduationCap,
   FileText
 } from 'lucide-react';
 import { User } from '../types';
+import { supabase } from '../lib/supabase';
 import DashboardCard from '../components/Dashboard/DashboardCard';
 import RecentActivities from '../components/Dashboard/RecentActivities';
 import StudentProgress from '../components/Dashboard/StudentProgress';
@@ -20,10 +21,49 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [categoryStats, setCategoryStats] = useState({
+    university: 0,
+    diploma: 0,
+    launch_year: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStudentStats();
+  }, [user]);
+
+  const fetchStudentStats = async () => {
+    try {
+      let query = supabase.from('students').select('id, program_level');
+
+      if (user.role === 'program_officer') {
+        query = query.eq('assigned_officer_id', user.id);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching student stats:', error);
+      } else if (data) {
+        setTotalStudents(data.length);
+        setCategoryStats({
+          university: data.filter(s => s.program_level === 'university').length,
+          diploma: data.filter(s => s.program_level === 'diploma').length,
+          launch_year: data.filter(s => s.program_level === 'launch_year').length
+        });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const stats = [
     {
-      title: 'Total Students',
-      value: '1,247',
+      title: user.role === 'program_officer' ? 'My Students' : 'Total Students',
+      value: loading ? '...' : totalStudents.toString(),
       change: '+12%',
       changeType: 'positive' as const,
       icon: Users,
@@ -124,46 +164,48 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
       </div>
 
-      {/* Additional Dashboard Sections for Admin */}
-      {user.role === 'admin' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* University Programs Overview */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">University Programs</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">Engineering Programs</p>
-                  <p className="text-sm text-gray-600">University of Zambia, UNZA</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-emerald-600">342</p>
-                  <p className="text-xs text-gray-500">students</p>
-                </div>
+      {/* Student Category Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {user.role === 'program_officer' ? 'My Students by Category' : 'Students by Category'}
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">University</p>
+                <p className="text-sm text-gray-600">Degree programs</p>
               </div>
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">Business Programs</p>
-                  <p className="text-sm text-gray-600">Copperbelt University, CBU</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-blue-600">287</p>
-                  <p className="text-xs text-gray-500">students</p>
-                </div>
+              <div className="text-right">
+                <p className="text-lg font-semibold text-blue-600">{loading ? '...' : categoryStats.university}</p>
+                <p className="text-xs text-gray-500">students</p>
               </div>
-              <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">Medical Programs</p>
-                  <p className="text-sm text-gray-600">Lusaka Apex Medical University</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-purple-600">198</p>
-                  <p className="text-xs text-gray-500">students</p>
-                </div>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">College/Diploma</p>
+                <p className="text-sm text-gray-600">Diploma & certificate programs</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-semibold text-green-600">{loading ? '...' : categoryStats.diploma}</p>
+                <p className="text-xs text-gray-500">students</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-orange-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">Launch Year</p>
+                <p className="text-sm text-gray-600">Foundation programs</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-semibold text-orange-600">{loading ? '...' : categoryStats.launch_year}</p>
+                <p className="text-xs text-gray-500">students</p>
               </div>
             </div>
           </div>
+        </div>
 
+      {user.role === 'admin' && (
+        <>
           {/* Performance Metrics */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Metrics</h3>
@@ -206,8 +248,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
+      </div>
     </div>
   );
 };
