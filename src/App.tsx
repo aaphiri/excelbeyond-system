@@ -5,6 +5,7 @@ import Header from './components/Layout/Header';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import StudentManagement from './pages/StudentManagement';
+import StudentProfiles from './pages/StudentProfiles';
 import AllowanceManagement from './pages/AllowanceManagement';
 import TaskManagement from './pages/TaskManagement';
 import IssueTracker from './pages/IssueTracker';
@@ -63,6 +64,7 @@ function App() {
               <Route path="/" element={<Dashboard user={user} />} />
               <Route path="/dashboard" element={<Dashboard user={user} />} />
               <Route path="/students" element={<StudentManagement user={user} />} />
+              <Route path="/profiles" element={<StudentProfiles user={user} />} />
               <Route path="/allowances" element={<AllowanceManagement user={user} />} />
               <Route path="/tasks" element={<TaskManagement user={user} />} />
               <Route path="/issues" element={<IssueTracker user={user} />} />

@@ -14,7 +14,8 @@ import {
   BookOpen,
   Megaphone,
   Calendar,
-  Handshake
+  Handshake,
+  UserCircle
 } from 'lucide-react';
 import { User } from '../../types';
 
@@ -28,6 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, isOpen, onToggle }) => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Students', href: '/students', icon: Users },
+    { name: 'Student Profiles', href: '/profiles', icon: UserCircle },
     { name: 'Allowances', href: '/allowances', icon: DollarSign },
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Issues', href: '/issues', icon: AlertTriangle },
