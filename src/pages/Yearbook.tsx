@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Search, Filter, Download, MessageSquare, Award, Calendar, Quote, ChevronRight } from 'lucide-react';
+import { BookOpen, Search, Filter, Download, MessageSquare, Award, Calendar, Quote, ChevronRight, UserPlus, Image as ImageIcon, Send } from 'lucide-react';
 import { User as UserType } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -43,9 +43,17 @@ const Yearbook: React.FC<YearbookProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProgram, setFilterProgram] = useState('all');
-  const [activeTab, setActiveTab] = useState<'graduates' | 'memory'>('graduates');
+  const [activeTab, setActiveTab] = useState<'graduates' | 'memory' | 'submit'>('graduates');
   const [showMemoryForm, setShowMemoryForm] = useState(false);
   const [newMessage, setNewMessage] = useState('');
+  const [newMemoryPhoto, setNewMemoryPhoto] = useState('');
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [myEntry, setMyEntry] = useState<YearbookEntry | null>(null);
+  const [submissionForm, setSubmissionForm] = useState({
+    quote: '',
+    achievements: '',
+    photo_url: ''
+  });
 
   useEffect(() => {
     fetchYearbooks();
@@ -55,8 +63,43 @@ const Yearbook: React.FC<YearbookProps> = ({ user }) => {
     if (selectedYearbook) {
       fetchEntries(selectedYearbook.id);
       fetchMemoryPosts(selectedYearbook.id);
+      if (user) {
+        checkMyEntry(selectedYearbook.id);
+      }
     }
-  }, [selectedYearbook]);
+  }, [selectedYearbook, user]);
+
+  const checkMyEntry = async (yearbookId: string) => {
+    if (!user) return;
+
+    try {
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (studentData) {
+        const { data, error } = await supabase
+          .from('yearbook_entries')
+          .select('*')
+          .eq('yearbook_id', yearbookId)
+          .eq('student_id', studentData.id)
+          .maybeSingle();
+
+        if (!error && data) {
+          setMyEntry(data);
+          setSubmissionForm({
+            quote: data.quote || '',
+            achievements: data.achievements || '',
+            photo_url: data.student_photo_url || ''
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking entry:', error);
+    }
+  };
 
   const fetchYearbooks = async () => {
     setLoading(true);
@@ -125,7 +168,8 @@ const Yearbook: React.FC<YearbookProps> = ({ user }) => {
       yearbook_id: selectedYearbook.id,
       author_name: user.name,
       author_id: user.id,
-      message: newMessage
+      message: newMessage,
+      photo_url: newMemoryPhoto || null
     }]);
 
     if (error) {
@@ -133,9 +177,80 @@ const Yearbook: React.FC<YearbookProps> = ({ user }) => {
       alert('Failed to add memory');
     } else {
       setNewMessage('');
+      setNewMemoryPhoto('');
       setShowMemoryForm(false);
       fetchMemoryPosts(selectedYearbook.id);
     }
+  };
+
+  const handleSubmitEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedYearbook || !user) return;
+
+    try {
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('*')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (!studentData) {
+        alert('Student profile not found. Please contact admin.');
+        return;
+      }
+
+      const entryData = {
+        yearbook_id: selectedYearbook.id,
+        student_id: studentData.id,
+        student_name: studentData.full_name,
+        student_photo_url: submissionForm.photo_url || studentData.profile_photo_url,
+        program: studentData.current_program,
+        quote: submissionForm.quote,
+        achievements: submissionForm.achievements,
+        status: 'pending'
+      };
+
+      if (myEntry) {
+        const { error } = await supabase
+          .from('yearbook_entries')
+          .update({
+            quote: submissionForm.quote,
+            achievements: submissionForm.achievements,
+            student_photo_url: submissionForm.photo_url || studentData.profile_photo_url
+          })
+          .eq('id', myEntry.id);
+
+        if (error) {
+          console.error('Error updating entry:', error);
+          alert('Failed to update entry');
+          return;
+        }
+        alert('Your entry has been updated and is pending approval!');
+      } else {
+        const { error } = await supabase
+          .from('yearbook_entries')
+          .insert([entryData]);
+
+        if (error) {
+          console.error('Error submitting entry:', error);
+          alert('Failed to submit entry');
+          return;
+        }
+        alert('Your entry has been submitted for approval!');
+      }
+
+      setShowSubmitForm(false);
+      if (selectedYearbook) {
+        checkMyEntry(selectedYearbook.id);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred');
+    }
+  };
+
+  const handlePrintYearbook = () => {
+    window.print();
   };
 
   const filteredEntries = entries.filter(entry => {
@@ -248,6 +363,24 @@ const Yearbook: React.FC<YearbookProps> = ({ user }) => {
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></div>
                   )}
                 </button>
+                {user && (
+                  <button
+                    onClick={() => setActiveTab('submit')}
+                    className={`px-6 py-3 font-semibold transition-colors relative ${
+                      activeTab === 'submit'
+                        ? 'text-blue-600'
+                        : 'text-slate-600 hover:text-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <UserPlus className="w-5 h-5" />
+                      <span>Submit Entry</span>
+                    </div>
+                    {activeTab === 'submit' && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></div>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -339,7 +472,7 @@ const Yearbook: React.FC<YearbookProps> = ({ user }) => {
                   )}
                 </div>
               </>
-            ) : (
+            ) : activeTab === 'memory' ? (
               <div className="space-y-6">
                 {user && (
                   <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -360,18 +493,35 @@ const Yearbook: React.FC<YearbookProps> = ({ user }) => {
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           required
                         />
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">
+                            <div className="flex items-center gap-2">
+                              <ImageIcon className="w-4 h-4" />
+                              <span>Photo URL (optional)</span>
+                            </div>
+                          </label>
+                          <input
+                            type="url"
+                            value={newMemoryPhoto}
+                            onChange={(e) => setNewMemoryPhoto(e.target.value)}
+                            placeholder="https://example.com/photo.jpg"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
                         <div className="flex gap-3">
                           <button
                             type="submit"
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                           >
-                            Post Memory
+                            <Send className="w-4 h-4" />
+                            <span>Post Memory</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => {
                               setShowMemoryForm(false);
                               setNewMessage('');
+                              setNewMemoryPhoto('');
                             }}
                             className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
                           >
@@ -421,6 +571,96 @@ const Yearbook: React.FC<YearbookProps> = ({ user }) => {
                       </div>
                     ))
                   )}
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-3xl mx-auto">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Submit Your Yearbook Entry</h2>
+                    <p className="text-slate-600">
+                      {myEntry
+                        ? `You have ${myEntry.status === 'approved' ? 'an approved' : 'a pending'} entry. You can update it below.`
+                        : 'Add your profile to the yearbook! Your entry will be reviewed before publication.'}
+                    </p>
+                  </div>
+
+                  {myEntry && myEntry.status === 'approved' && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-green-800 font-medium">Your entry has been approved and is now visible in the yearbook!</p>
+                    </div>
+                  )}
+
+                  {myEntry && myEntry.status === 'pending' && (
+                    <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-yellow-800 font-medium">Your entry is pending admin approval.</p>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSubmitEntry} className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="w-4 h-4" />
+                          <span>Profile Photo URL (optional)</span>
+                        </div>
+                      </label>
+                      <input
+                        type="url"
+                        value={submissionForm.photo_url}
+                        onChange={(e) => setSubmissionForm({ ...submissionForm, photo_url: e.target.value })}
+                        placeholder="https://example.com/your-photo.jpg"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Leave blank to use your profile photo from student records</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        <div className="flex items-center gap-2">
+                          <Quote className="w-4 h-4" />
+                          <span>Personal Quote (optional)</span>
+                        </div>
+                      </label>
+                      <textarea
+                        value={submissionForm.quote}
+                        onChange={(e) => setSubmissionForm({ ...submissionForm, quote: e.target.value })}
+                        rows={3}
+                        placeholder="Share an inspiring quote or personal message..."
+                        maxLength={250}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">{submissionForm.quote.length}/250 characters</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        <div className="flex items-center gap-2">
+                          <Award className="w-4 h-4" />
+                          <span>Achievements & Highlights (optional)</span>
+                        </div>
+                      </label>
+                      <textarea
+                        value={submissionForm.achievements}
+                        onChange={(e) => setSubmissionForm({ ...submissionForm, achievements: e.target.value })}
+                        rows={4}
+                        placeholder="List your academic achievements, awards, extracurriculars, or memorable moments..."
+                        maxLength={500}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">{submissionForm.achievements.length}/500 characters</p>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="submit"
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                      >
+                        <Send className="w-5 h-5" />
+                        <span>{myEntry ? 'Update Entry' : 'Submit Entry'}</span>
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             )}

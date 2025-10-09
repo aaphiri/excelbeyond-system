@@ -331,12 +331,67 @@ const YearbookAdmin: React.FC<YearbookAdminProps> = ({ user }) => {
     );
   }
 
+  const getStats = () => {
+    const totalEntries = entries.length;
+    const approvedEntries = entries.filter(e => e.status === 'approved').length;
+    const pendingEntries = entries.filter(e => e.status === 'pending').length;
+    const rejectedEntries = entries.filter(e => e.status === 'rejected').length;
+
+    return { totalEntries, approvedEntries, pendingEntries, rejectedEntries };
+  };
+
+  const stats = selectedYearbook ? getStats() : null;
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800 mb-2">Yearbook Management</h1>
         <p className="text-slate-600">Create and manage graduation yearbooks</p>
       </div>
+
+      {selectedYearbook && stats && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600">Total Entries</p>
+                <p className="text-3xl font-bold text-slate-800">{stats.totalEntries}</p>
+              </div>
+              <Users className="w-10 h-10 text-blue-600 opacity-50" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600">Approved</p>
+                <p className="text-3xl font-bold text-green-600">{stats.approvedEntries}</p>
+              </div>
+              <Check className="w-10 h-10 text-green-600 opacity-50" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600">Pending Review</p>
+                <p className="text-3xl font-bold text-yellow-600">{stats.pendingEntries}</p>
+              </div>
+              <Calendar className="w-10 h-10 text-yellow-600 opacity-50" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600">Rejected</p>
+                <p className="text-3xl font-bold text-red-600">{stats.rejectedEntries}</p>
+              </div>
+              <X className="w-10 h-10 text-red-600 opacity-50" />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6">
         <div className="flex gap-4 border-b border-slate-200">
