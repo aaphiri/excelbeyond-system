@@ -38,11 +38,13 @@ const Sidebar: React.FC<SidebarProps> = ({ user, isOpen, onToggle }) => {
     { name: 'Library', href: '/library', icon: BookOpen },
     { name: 'Announcements', href: '/announcements', icon: Megaphone },
     { name: 'Excel Beyond Events', href: '/events', icon: Calendar },
+    { name: 'Graduation Yearbook', href: '/yearbook', icon: BookOpen },
     { name: 'Corporate Collaborations', href: '/corporate', icon: Handshake },
     { name: 'User Management', href: '/users', icon: Users },
   ];
 
-  const adminOnlyRoutes = user.role === 'admin' ? [
+  const adminOnlyRoutes = user.role === 'admin' || user.role === 'deputy_manager' ? [
+    { name: 'Yearbook Admin', href: '/yearbook-admin', icon: GraduationCap },
     { name: 'Settings', href: '/settings', icon: Settings },
   ] : [];
 
