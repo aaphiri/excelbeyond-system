@@ -16,6 +16,8 @@ import Announcements from './pages/Announcements';
 import Events from './pages/Events';
 import Yearbook from './pages/Yearbook';
 import YearbookAdmin from './pages/YearbookAdmin';
+import ImpactStories from './pages/ImpactStories';
+import ImpactStoriesAdmin from './pages/ImpactStoriesAdmin';
 import UserManagement from './pages/UserManagement';
 import Settings from './pages/Settings';
 import CorporateCollaborations from './pages/CorporateCollaborations';
@@ -77,6 +79,8 @@ function App() {
               <Route path="/events" element={<Events user={user} />} />
               <Route path="/yearbook" element={<Yearbook user={user} />} />
               <Route path="/yearbook-admin" element={<YearbookAdmin user={user} />} />
+              <Route path="/impact-stories" element={<ImpactStories user={user} />} />
+              <Route path="/impact-stories-admin" element={<ImpactStoriesAdmin user={user} />} />
               <Route path="/corporate" element={<CorporateCollaborations />} />
               <Route path="/users" element={<UserManagement user={user} />} />
               <Route path="/settings" element={<Settings user={user} />} />

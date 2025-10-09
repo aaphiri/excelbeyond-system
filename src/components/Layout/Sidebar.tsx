@@ -15,7 +15,8 @@ import {
   Megaphone,
   Calendar,
   Handshake,
-  UserCircle
+  UserCircle,
+  Heart
 } from 'lucide-react';
 import { User } from '../../types';
 
@@ -39,12 +40,14 @@ const Sidebar: React.FC<SidebarProps> = ({ user, isOpen, onToggle }) => {
     { name: 'Announcements', href: '/announcements', icon: Megaphone },
     { name: 'Excel Beyond Events', href: '/events', icon: Calendar },
     { name: 'Graduation Yearbook', href: '/yearbook', icon: BookOpen },
+    { name: 'Impact Stories', href: '/impact-stories', icon: Heart },
     { name: 'Corporate Collaborations', href: '/corporate', icon: Handshake },
     { name: 'User Management', href: '/users', icon: Users },
   ];
 
   const adminOnlyRoutes = user.role === 'admin' || user.role === 'deputy_manager' ? [
     { name: 'Yearbook Admin', href: '/yearbook-admin', icon: GraduationCap },
+    { name: 'Stories Admin', href: '/impact-stories-admin', icon: Heart },
     { name: 'Settings', href: '/settings', icon: Settings },
   ] : [];
 
