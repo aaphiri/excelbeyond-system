@@ -1,14 +1,16 @@
-import { supabase } from './supabase';
-
 export interface StaffUser {
   id: string;
   staff_id: string;
+  auth_id: string;
   email: string;
   name: string;
   role: string;
   department: string;
+  is_active: boolean;
   onboarding_completed: boolean;
-  password_reset_required: boolean;
+  password_reset_required?: boolean;
+  last_login: string;
+  created_at: string;
 }
 
 export interface LoginResult {
@@ -19,27 +21,53 @@ export interface LoginResult {
   error?: string;
 }
 
+export interface RegisterRequest {
+  staffId: string;
+  email: string;
+  password: string;
+  name: string;
+  role: string;
+  department?: string;
+}
+
+export interface RegisterResult {
+  success: boolean;
+  staff?: any;
+  error?: string;
+}
+
 export async function staffLogin(
   staffId: string,
   password: string,
   rememberMe: boolean = false
 ): Promise<LoginResult> {
   try {
-    const { data, error } = await supabase.rpc('staff_login', {
-      p_staff_id: staffId,
-      p_password: password,
-      p_remember_me: rememberMe,
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-auth/login`;
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ staffId, password, rememberMe }),
     });
 
-    if (error) {
-      console.error('Login RPC error:', error);
+    const data = await response.json();
+
+    if (!response.ok) {
       return {
         success: false,
-        error: 'An error occurred during login',
+        error: data.error || 'Login failed',
       };
     }
 
-    return data as LoginResult;
+    return {
+      success: true,
+      user: data.user,
+      session_token: data.session_token,
+      expires_at: data.expires_at,
+    };
   } catch (error: any) {
     console.error('Login error:', error);
     return {
@@ -49,43 +77,63 @@ export async function staffLogin(
   }
 }
 
-export async function verifyStaffSession(sessionToken: string): Promise<StaffUser | null> {
+export async function staffRegister(
+  request: RegisterRequest
+): Promise<RegisterResult> {
   try {
-    const { data: session } = await supabase
-      .from('staff_sessions')
-      .select('*')
-      .eq('session_token', sessionToken)
-      .maybeSingle();
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-auth/register`;
 
-    if (!session || new Date(session.expires_at) < new Date()) {
-      return null;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify(request),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || 'Registration failed',
+      };
     }
-
-    const { data: staff } = await supabase
-      .from('staff')
-      .select('*')
-      .eq('staff_id', session.staff_id)
-      .maybeSingle();
-
-    if (!staff || !staff.is_active) {
-      return null;
-    }
-
-    await supabase
-      .from('staff_sessions')
-      .update({ last_activity: new Date().toISOString() })
-      .eq('session_token', sessionToken);
 
     return {
-      id: staff.id,
-      staff_id: staff.staff_id,
-      email: staff.email,
-      name: staff.name,
-      role: staff.role,
-      department: staff.department,
-      onboarding_completed: staff.onboarding_completed,
-      password_reset_required: staff.password_reset_required,
+      success: true,
+      staff: data.staff,
     };
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    return {
+      success: false,
+      error: error.message || 'An error occurred during registration',
+    };
+  }
+}
+
+export async function verifyStaffSession(sessionToken: string): Promise<StaffUser | null> {
+  try {
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-auth/verify-session`;
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ session_token: sessionToken }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return data.user;
   } catch (error) {
     console.error('Session verification error:', error);
     return null;
@@ -94,10 +142,16 @@ export async function verifyStaffSession(sessionToken: string): Promise<StaffUse
 
 export async function staffLogout(sessionToken: string): Promise<void> {
   try {
-    await supabase
-      .from('staff_sessions')
-      .delete()
-      .eq('session_token', sessionToken);
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-auth/logout`;
+
+    await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ session_token: sessionToken }),
+    });
   } catch (error) {
     console.error('Logout error:', error);
   }

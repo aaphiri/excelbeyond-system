@@ -7,6 +7,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+interface LoginRequest {
+  staffId: string;
+  password: string;
+  rememberMe?: boolean;
+}
+
+interface RegisterRequest {
+  staffId: string;
+  email: string;
+  password: string;
+  name: string;
+  role: string;
+  department?: string;
+}
+
 interface PasswordResetRequest {
   email: string;
 }
@@ -75,6 +90,141 @@ Deno.serve(async (req: Request) => {
 
     const url = new URL(req.url);
     const path = url.pathname.split("/").pop();
+
+    if (req.method === "POST" && path === "login") {
+      const { staffId, password, rememberMe }: LoginRequest = await req.json();
+
+      const { data, error } = await supabase.rpc('staff_login', {
+        p_staff_id: staffId,
+        p_password: password,
+        p_remember_me: rememberMe || false
+      });
+
+      if (error) {
+        console.error('Login RPC error:', error);
+        return new Response(
+          JSON.stringify({ error: "Invalid credentials" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!data.success) {
+        return new Response(
+          JSON.stringify({ error: data.error }),
+          { status: data.status || 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          user: data.user,
+          session_token: data.session_token,
+          expires_at: data.expires_at
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (req.method === "POST" && path === "register") {
+      const { staffId, email, password, name, role, department }: RegisterRequest = await req.json();
+
+      const { data, error } = await supabase.rpc('staff_register', {
+        p_staff_id: staffId,
+        p_email: email,
+        p_password: password,
+        p_name: name,
+        p_role: role,
+        p_department: department
+      });
+
+      if (error) {
+        console.error('Registration RPC error:', error);
+        return new Response(
+          JSON.stringify({ error: error.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!data.success) {
+        return new Response(
+          JSON.stringify({ error: data.error }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, staff: data.staff }),
+        { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (req.method === "POST" && path === "verify-session") {
+      const { session_token } = await req.json();
+
+      const { data: session } = await supabase
+        .from("staff_sessions")
+        .select("*")
+        .eq("session_token", session_token)
+        .maybeSingle();
+
+      if (!session || new Date(session.expires_at) < new Date()) {
+        return new Response(
+          JSON.stringify({ error: "Invalid or expired session" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: staff } = await supabase
+        .from("staff")
+        .select("*")
+        .eq("staff_id", session.staff_id)
+        .maybeSingle();
+
+      if (!staff || !staff.is_active) {
+        return new Response(
+          JSON.stringify({ error: "Account inactive" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      await supabase
+        .from("staff_sessions")
+        .update({ last_activity: new Date().toISOString() })
+        .eq("session_token", session_token);
+
+      const userData = {
+        id: staff.id,
+        staff_id: staff.staff_id,
+        auth_id: staff.staff_id,
+        email: staff.email,
+        name: staff.name,
+        role: staff.role,
+        department: staff.department,
+        is_active: staff.is_active,
+        onboarding_completed: staff.onboarding_completed,
+        last_login: staff.last_login,
+        created_at: staff.created_at
+      };
+
+      return new Response(
+        JSON.stringify({ user: userData }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (req.method === "POST" && path === "logout") {
+      const { session_token } = await req.json();
+
+      await supabase
+        .from("staff_sessions")
+        .delete()
+        .eq("session_token", session_token);
+
+      return new Response(
+        JSON.stringify({ message: "Logged out successfully" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (req.method === "POST" && path === "forgot-password") {
       const { email }: PasswordResetRequest = await req.json();
