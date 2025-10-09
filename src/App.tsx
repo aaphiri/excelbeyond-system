@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
-import LoginPage from './pages/LoginPage';
+import GoogleLoginPage from './pages/GoogleLoginPage';
 import Dashboard from './pages/Dashboard';
 import StudentManagement from './pages/StudentManagement';
 import StudentProfiles from './pages/StudentProfiles';
@@ -21,74 +23,218 @@ import ImpactStoriesAdmin from './pages/ImpactStoriesAdmin';
 import UserManagement from './pages/UserManagement';
 import Settings from './pages/Settings';
 import CorporateCollaborations from './pages/CorporateCollaborations';
-import { User, UserRole } from './types';
+import { User } from './types';
 
-function App() {
-  const [user, setUser] = useState<User | null>(null);
+const AppContent: React.FC = () => {
+  const { user: authUser, signOut, loading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem('excelhub_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
+  const legacyUser: User | null = authUser ? {
+    id: authUser.id,
+    name: authUser.name,
+    email: authUser.email,
+    role: authUser.role as any,
+  } : null;
 
-  const handleLogin = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem('excelhub_user', JSON.stringify(userData));
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('excelhub_user');
-  };
-
-  if (!user) {
-    return <LoginPage onLogin={handleLogin} />;
+  if (!authUser) {
+    return (
+      <Routes>
+        <Route path="/login" element={<GoogleLoginPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
   }
 
   return (
-    <Router>
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar 
-          user={user} 
-          isOpen={sidebarOpen} 
-          onToggle={() => setSidebarOpen(!sidebarOpen)} 
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar
+        user={legacyUser!}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header
+          user={legacyUser!}
+          onLogout={signOut}
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
         />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Header 
-            user={user} 
-            onLogout={handleLogout}
-            onMenuClick={() => setSidebarOpen(!sidebarOpen)}
-          />
-          <main className="flex-1 overflow-y-auto bg-gray-50 p-3 sm:p-6">
-            <Routes>
-              <Route path="/" element={<Dashboard user={user} />} />
-              <Route path="/dashboard" element={<Dashboard user={user} />} />
-              <Route path="/students" element={<StudentManagement user={user} />} />
-              <Route path="/profiles" element={<StudentProfiles user={user} />} />
-              <Route path="/allowances" element={<AllowanceManagement user={user} />} />
-              <Route path="/tasks" element={<TaskManagement user={user} />} />
-              <Route path="/issues" element={<IssueTracker user={user} />} />
-              <Route path="/forms" element={<Forms user={user} />} />
-              <Route path="/files" element={<StudentFiles user={user} />} />
-              <Route path="/library" element={<Library user={user} />} />
-              <Route path="/announcements" element={<Announcements user={user} />} />
-              <Route path="/events" element={<Events user={user} />} />
-              <Route path="/yearbook" element={<Yearbook user={user} />} />
-              <Route path="/yearbook-admin" element={<YearbookAdmin user={user} />} />
-              <Route path="/impact-stories" element={<ImpactStories user={user} />} />
-              <Route path="/impact-stories-admin" element={<ImpactStoriesAdmin user={user} />} />
-              <Route path="/corporate" element={<CorporateCollaborations />} />
-              <Route path="/users" element={<UserManagement user={user} />} />
-              <Route path="/settings" element={<Settings user={user} />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </main>
-        </div>
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-3 sm:p-6">
+          <Routes>
+            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Dashboard user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/students"
+              element={
+                <ProtectedRoute>
+                  <StudentManagement user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profiles"
+              element={
+                <ProtectedRoute>
+                  <StudentProfiles user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/allowances"
+              element={
+                <ProtectedRoute>
+                  <AllowanceManagement user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute>
+                  <TaskManagement user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/issues"
+              element={
+                <ProtectedRoute>
+                  <IssueTracker user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/forms"
+              element={
+                <ProtectedRoute>
+                  <Forms user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/files"
+              element={
+                <ProtectedRoute>
+                  <StudentFiles user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/library"
+              element={
+                <ProtectedRoute>
+                  <Library user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/announcements"
+              element={
+                <ProtectedRoute>
+                  <Announcements user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/events"
+              element={
+                <ProtectedRoute>
+                  <Events user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/yearbook"
+              element={
+                <ProtectedRoute>
+                  <Yearbook user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/yearbook-admin"
+              element={
+                <ProtectedRoute requiredRole="deputy_manager">
+                  <YearbookAdmin user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/impact-stories"
+              element={
+                <ProtectedRoute>
+                  <ImpactStories user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/impact-stories-admin"
+              element={
+                <ProtectedRoute requiredRole="deputy_manager">
+                  <ImpactStoriesAdmin user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/corporate"
+              element={
+                <ProtectedRoute>
+                  <CorporateCollaborations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute>
+                  <UserManagement user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Settings user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </main>
       </div>
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Router>
   );
 }
