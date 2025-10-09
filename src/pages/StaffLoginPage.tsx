@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  BookOpen,
   AlertCircle,
   Loader2,
   Lock,
@@ -11,6 +10,7 @@ import {
   ArrowLeft,
   Shield
 } from 'lucide-react';
+import { staffLogin } from '../lib/staffAuth';
 
 interface StaffLoginProps {
   onSwitchToGoogle: () => void;
@@ -31,33 +31,18 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
     setError(null);
 
     try {
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-auth/login`;
+      const result = await staffLogin(staffId, password, rememberMe);
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          staffId,
-          password,
-          rememberMe,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+      if (!result.success) {
+        throw new Error(result.error || 'Login failed');
       }
 
-      localStorage.setItem('staff_session_token', data.session_token);
-      localStorage.setItem('staff_user', JSON.stringify(data.user));
+      localStorage.setItem('staff_session_token', result.session_token!);
+      localStorage.setItem('staff_user', JSON.stringify(result.user));
 
-      window.dispatchEvent(new CustomEvent('staff-login', { detail: data.user }));
+      window.dispatchEvent(new CustomEvent('staff-login', { detail: result.user }));
 
-      if (!data.user.onboarding_completed) {
+      if (!result.user!.onboarding_completed) {
         navigate('/onboarding');
       } else {
         navigate('/dashboard');

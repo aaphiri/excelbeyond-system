@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { verifyStaffSession, staffLogout } from '../lib/staffAuth';
 
 interface AuthUser {
   id: string;
@@ -33,22 +34,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const verifyStaffSession = async (sessionToken: string, cachedUser: AuthUser) => {
+  const verifyStaffSessionWrapper = async (sessionToken: string, cachedUser: AuthUser) => {
     try {
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-auth/verify-session`;
+      const userData = await verifyStaffSession(sessionToken);
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ session_token: sessionToken }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
+      if (userData) {
+        setUser(userData as AuthUser);
       } else {
         localStorage.removeItem('staff_session_token');
         localStorage.removeItem('staff_user');
@@ -69,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const staffUser = localStorage.getItem('staff_user');
 
     if (staffSessionToken && staffUser) {
-      verifyStaffSession(staffSessionToken, JSON.parse(staffUser));
+      verifyStaffSessionWrapper(staffSessionToken, JSON.parse(staffUser));
     } else {
       supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
@@ -194,17 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const staffSessionToken = localStorage.getItem('staff_session_token');
 
       if (staffSessionToken) {
-        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-auth/logout`;
-
-        await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ session_token: staffSessionToken }),
-        });
-
+        await staffLogout(staffSessionToken);
         localStorage.removeItem('staff_session_token');
         localStorage.removeItem('staff_user');
       } else {
