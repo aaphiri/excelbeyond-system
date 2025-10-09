@@ -10,6 +10,7 @@ interface AuthUser {
   photo_url?: string;
   role: 'admin' | 'deputy_manager' | 'program_officer' | 'user';
   is_active: boolean;
+  onboarding_completed: boolean;
   last_login: string;
   created_at: string;
 }
@@ -32,29 +33,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        loadUserProfile(session.user);
-      } else {
-        setLoading(false);
-      }
-    });
+  const verifyStaffSession = async (sessionToken: string, cachedUser: AuthUser) => {
+    try {
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-auth/verify-session`;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session?.user) {
-        await loadUserProfile(session.user);
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ session_token: sessionToken }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
       } else {
+        localStorage.removeItem('staff_session_token');
+        localStorage.removeItem('staff_user');
         setUser(null);
-        setLoading(false);
       }
-    });
+    } catch (error) {
+      console.error('Session verification error:', error);
+      localStorage.removeItem('staff_session_token');
+      localStorage.removeItem('staff_user');
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return () => subscription.unsubscribe();
+  useEffect(() => {
+    const staffSessionToken = localStorage.getItem('staff_session_token');
+    const staffUser = localStorage.getItem('staff_user');
+
+    if (staffSessionToken && staffUser) {
+      verifyStaffSession(staffSessionToken, JSON.parse(staffUser));
+    } else {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        if (session?.user) {
+          loadUserProfile(session.user);
+        } else {
+          setLoading(false);
+        }
+      });
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        setSession(session);
+        if (session?.user) {
+          await loadUserProfile(session.user);
+        } else {
+          setUser(null);
+          setLoading(false);
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    }
+
+    const staffLoginHandler = (event: any) => {
+      const staffUserData = event.detail;
+      setUser(staffUserData);
+      setLoading(false);
+    };
+
+    window.addEventListener('staff-login', staffLoginHandler);
+    return () => window.removeEventListener('staff-login', staffLoginHandler);
   }, []);
 
   const loadUserProfile = async (authUser: SupabaseUser) => {
@@ -143,8 +191,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      const staffSessionToken = localStorage.getItem('staff_session_token');
+
+      if (staffSessionToken) {
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-auth/logout`;
+
+        await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ session_token: staffSessionToken }),
+        });
+
+        localStorage.removeItem('staff_session_token');
+        localStorage.removeItem('staff_user');
+      } else {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      }
+
       setUser(null);
       setSession(null);
     } catch (error) {
