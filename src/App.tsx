@@ -7,7 +7,6 @@ import Header from './components/Layout/Header';
 import GoogleLoginPage from './pages/GoogleLoginPage';
 import StaffLoginPage from './pages/StaffLoginPage';
 import ForgotPassword from './pages/ForgotPassword';
-import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import StudentManagement from './pages/StudentManagement';
 import StudentProfiles from './pages/StudentProfiles';
@@ -61,14 +60,6 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (!authUser.onboarding_completed) {
-    return (
-      <Routes>
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="*" element={<Navigate to="/onboarding" replace />} />
-      </Routes>
-    );
-  }
 
   return (
     <div className="flex h-screen bg-gray-50">

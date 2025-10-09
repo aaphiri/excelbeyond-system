@@ -20,7 +20,7 @@ const GoogleLoginPage: React.FC = () => {
 
   useEffect(() => {
     if (user && !authLoading) {
-      navigate('/onboarding');
+      navigate('/dashboard');
     }
   }, [user, authLoading, navigate]);
 
@@ -175,7 +175,7 @@ const GoogleLoginPage: React.FC = () => {
             <div className="p-8">
               <div className="text-center mb-8">
                 <p className="text-slate-600">
-                  Sign in with your Family Legacy Zambia account
+                  Sign in with your Google account
                 </p>
               </div>
 
@@ -243,11 +243,10 @@ const GoogleLoginPage: React.FC = () => {
                   <Shield className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-semibold text-green-900 mb-1">
-                      Restricted Access
+                      Secure Access
                     </p>
                     <p className="text-xs text-green-800">
-                      Only users with <span className="font-semibold">@familylegacyzambia.org</span> email addresses
-                      can access this system.
+                      Sign in with your Google account to access the system.
                     </p>
                   </div>
                 </div>

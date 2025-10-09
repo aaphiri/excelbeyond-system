@@ -27,8 +27,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ALLOWED_DOMAIN = '@familylegacyzambia.org';
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -98,13 +96,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserProfile = async (authUser: SupabaseUser) => {
     try {
-      if (!authUser.email?.endsWith(ALLOWED_DOMAIN)) {
-        await supabase.auth.signOut();
-        setUser(null);
-        setLoading(false);
-        throw new Error('Access restricted to Family Legacy Zambia accounts only');
-      }
-
       const { data: existingUser, error: fetchError } = await supabase
         .from('auth_users')
         .select('*')
