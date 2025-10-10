@@ -28,6 +28,7 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [verificationToken, setVerificationToken] = useState<string | null>(null);
 
   const [registerData, setRegisterData] = useState<RegisterRequest>({
     staffId: '',
@@ -83,7 +84,11 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
         throw new Error(result.error || 'Registration failed');
       }
 
-      setSuccess('Registration successful! You can now login with your credentials.');
+      if (result.verification_token) {
+        setVerificationToken(result.verification_token);
+      }
+
+      setSuccess(result.message || 'Registration successful! Please verify your email to login.');
       setMode('login');
       setStaffId(registerData.staffId);
       setRegisterData({
@@ -151,6 +156,18 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
                 <div className="flex-1">
                   <p className="text-sm text-green-800 font-medium">Success!</p>
                   <p className="text-sm text-green-700 mt-1">{success}</p>
+                  {verificationToken && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                      <p className="text-xs font-semibold text-blue-900 mb-1">Development Mode - Verification Token:</p>
+                      <code className="text-xs break-all text-blue-800 block mb-2">{verificationToken}</code>
+                      <button
+                        onClick={() => navigate(`/verify-email?token=${verificationToken}`)}
+                        className="w-full bg-blue-600 text-white text-xs font-semibold py-2 px-3 rounded hover:bg-blue-700 transition-all"
+                      >
+                        Verify Email Now
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

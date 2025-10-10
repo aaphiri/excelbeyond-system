@@ -7,6 +7,8 @@ import Header from './components/Layout/Header';
 import GoogleLoginPage from './pages/GoogleLoginPage';
 import StaffLoginPage from './pages/StaffLoginPage';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import StudentManagement from './pages/StudentManagement';
 import StudentProfiles from './pages/StudentProfiles';
@@ -55,6 +57,8 @@ const AppContent: React.FC = () => {
           element={<StaffLoginPage onSwitchToGoogle={() => window.location.href = '/login'} />}
         />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );

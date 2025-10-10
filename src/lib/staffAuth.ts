@@ -33,6 +33,8 @@ export interface RegisterRequest {
 export interface RegisterResult {
   success: boolean;
   staff?: any;
+  verification_token?: string;
+  message?: string;
   error?: string;
 }
 

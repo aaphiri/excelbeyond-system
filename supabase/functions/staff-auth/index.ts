@@ -31,6 +31,34 @@ interface PasswordChangeRequest {
   newPassword: string;
 }
 
+interface EmailVerificationRequest {
+  token: string;
+}
+
+async function sendVerificationEmail(email: string, token: string, staffName: string) {
+  console.log(`
+    ========================================
+    EMAIL VERIFICATION
+    ========================================
+    To: ${email}
+    Subject: Verify Your Email Address
+
+    Hello ${staffName},
+
+    Welcome to Excel Beyond Staff Portal!
+
+    Please verify your email address using the token below:
+
+    Verification Token: ${token}
+
+    This link will expire in 24 hours.
+
+    Best regards,
+    Excel Beyond Team
+    ========================================
+  `);
+}
+
 async function sendPasswordResetEmail(email: string, token: string, staffName: string) {
   console.log(`
     ========================================
@@ -152,9 +180,49 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      if (data.verification_token) {
+        await sendVerificationEmail(email, data.verification_token, name);
+      }
+
       return new Response(
-        JSON.stringify({ success: true, staff: data.staff }),
+        JSON.stringify({
+          success: true,
+          staff: data.staff,
+          verification_token: data.verification_token,
+          message: data.message
+        }),
         { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (req.method === "POST" && path === "verify-email") {
+      const { token }: EmailVerificationRequest = await req.json();
+
+      const { data, error } = await supabase.rpc('verify_email_token', {
+        p_token: token
+      });
+
+      if (error) {
+        console.error('Email verification error:', error);
+        return new Response(
+          JSON.stringify({ error: "Failed to verify email. Please try again." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!data.success) {
+        return new Response(
+          JSON.stringify({ error: data.error || "Invalid or expired verification token" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: data.message
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
