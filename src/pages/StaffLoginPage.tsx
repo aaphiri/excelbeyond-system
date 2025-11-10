@@ -21,7 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 const staffImages = [
   '/images/086A0045.jpg',
   '/images/Lusubilo Gondwe.jpg',
-  '/images/Legacy+Academy.jpg',
+  '/images/Cholwe Cheelo.jpg',
   'https://images.pexels.com/photos/5212317/pexels-photo-5212317.jpeg',
   'https://images.pexels.com/photos/7942485/pexels-photo-7942485.jpeg',
 ];
