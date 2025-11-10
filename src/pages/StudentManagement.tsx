@@ -16,15 +16,28 @@ interface Student {
   email?: string;
   contact_number?: string;
   community?: string;
+  date_of_birth?: string;
+  gender?: string;
+  nrc_number?: string;
+  chl_number?: string;
+  school_id_number?: string;
   program_level: 'university' | 'diploma' | 'launch_year';
   program_status: 'enrolled' | 'graduated' | 'discharged' | 'suspended' | 'transferred';
   academic_standing: 'excellent' | 'good' | 'probation' | 'warning';
   institution_name?: string;
+  institution_location?: string;
   current_program?: string;
+  area_of_study?: string;
+  start_date?: string;
+  expected_end_date?: string;
   assigned_officer_id?: string;
   assigned_officer_name?: string;
   overall_gpa?: number;
   profile_picture?: string;
+  guardian_full_name?: string;
+  guardian_contact_number?: string;
+  guardian_community?: string;
+  guardian_relationship?: string;
   created_at: string;
 }
 
@@ -74,21 +87,18 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      let query = supabase.from('students').select('*');
-
-      if (user?.role === 'program_officer') {
-        query = query.eq('assigned_officer_id', user.id);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching students:', error);
-        showNotification('error', 'Failed to load students');
+        showNotification('error', 'Failed to load students: ' + error.message);
       } else {
         setStudents(data || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
       showNotification('error', 'An error occurred while loading students');
     } finally {
