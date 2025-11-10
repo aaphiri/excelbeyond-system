@@ -22,7 +22,7 @@ const staffImages = [
   '/images/086A0045.jpg',
   '/images/Lusubilo Gondwe.jpg',
   '/images/Cholwe Cheelo.jpg',
-  'https://images.pexels.com/photos/5212317/pexels-photo-5212317.jpeg',
+  '/images/Ziale-1.png',
   'https://images.pexels.com/photos/7942485/pexels-photo-7942485.jpeg',
 ];
 
