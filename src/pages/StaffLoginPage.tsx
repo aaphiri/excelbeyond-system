@@ -20,7 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const staffImages = [
   '/images/086A0045.jpg',
-  'https://images.pexels.com/photos/8923123/pexels-photo-8923123.jpeg',
+  '/images/Lusubilo Gondwe.jpg',
   'https://images.pexels.com/photos/3184287/pexels-photo-3184287.jpeg',
   'https://images.pexels.com/photos/5212317/pexels-photo-5212317.jpeg',
   'https://images.pexels.com/photos/7942485/pexels-photo-7942485.jpeg',
