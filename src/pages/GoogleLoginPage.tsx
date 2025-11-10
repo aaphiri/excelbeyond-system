@@ -5,7 +5,7 @@ import { BookOpen, AlertCircle, Loader2, Shield, ChevronLeft, ChevronRight } fro
 
 const studentImages = [
   '/images/086A0045.jpg',
-  'https://images.pexels.com/photos/8923122/pexels-photo-8923122.jpeg',
+  '/images/Lusubilo Gondwe.jpg',
   'https://images.pexels.com/photos/5212345/pexels-photo-5212345.jpeg',
   'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg',
   'https://images.pexels.com/photos/3184306/pexels-photo-3184306.jpeg',
