@@ -23,7 +23,7 @@ const staffImages = [
   '/images/Lusubilo Gondwe.jpg',
   '/images/Cholwe Cheelo.jpg',
   '/images/Ziale-1.png',
-  'https://images.pexels.com/photos/7942485/pexels-photo-7942485.jpeg',
+  '/images/Cholwe Cheelo.jpg',
 ];
 
 interface StaffLoginProps {
