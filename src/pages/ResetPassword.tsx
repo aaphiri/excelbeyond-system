@@ -56,7 +56,8 @@ const ResetPassword: React.FC = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
+      <div className="min-h-screen auth-page-bg flex items-center justify-center p-4">
+        <div className="absolute inset-0 pointer-events-none" />
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-2xl border border-green-100 p-8">
             <div className="text-center">
@@ -81,8 +82,9 @@ const ResetPassword: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen auth-page-bg flex items-center justify-center p-4">
+      <div className="absolute inset-0 pointer-events-none" />
+      <div className="w-full max-w-md relative z-10">
         <button
           onClick={() => navigate('/login')}
           className="mb-6 flex items-center gap-2 text-green-700 hover:text-green-800 transition-colors"

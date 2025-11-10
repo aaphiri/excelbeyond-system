@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -11,9 +11,19 @@ import {
   Shield,
   Mail,
   Building2,
-  CheckCircle2
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { staffLogin, staffRegister, RegisterRequest } from '../lib/staffAuth';
+
+const staffImages = [
+  'https://images.pexels.com/photos/3184357/pexels-photo-3184357.jpeg',
+  'https://images.pexels.com/photos/8923123/pexels-photo-8923123.jpeg',
+  'https://images.pexels.com/photos/3184287/pexels-photo-3184287.jpeg',
+  'https://images.pexels.com/photos/5212317/pexels-photo-5212317.jpeg',
+  'https://images.pexels.com/photos/7942485/pexels-photo-7942485.jpeg',
+];
 
 interface StaffLoginProps {
   onSwitchToGoogle: () => void;
@@ -29,6 +39,7 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [verificationToken, setVerificationToken] = useState<string | null>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const [registerData, setRegisterData] = useState<RegisterRequest>({
     staffId: '',
@@ -40,6 +51,14 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
   });
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % staffImages.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,31 +130,135 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
     navigate('/forgot-password');
   };
 
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % staffImages.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + staffImages.length) % staffImages.length);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex bg-white">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-green-600 to-emerald-700">
+        <div className="absolute inset-0">
+          {staffImages.map((image, index) => (
+            <div
+              key={index}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentSlide ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <img
+                src={image}
+                alt={`Staff ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-green-900/90 via-green-900/40 to-transparent"></div>
+            </div>
+          ))}
+        </div>
+
         <button
-          onClick={onSwitchToGoogle}
-          className="mb-6 flex items-center gap-2 text-green-700 hover:text-green-800 transition-colors"
+          onClick={prevSlide}
+          className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm font-medium">Back to Google Sign-In</span>
+          <ChevronLeft className="w-6 h-6" />
         </button>
 
-        <div className="bg-white rounded-2xl shadow-2xl border border-green-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-8 text-white">
-            <div className="flex items-center gap-3 mb-4">
+        <button
+          onClick={nextSlide}
+          className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all"
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
+
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
+          {staffImages.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentSlide(index)}
+              className={`w-2 h-2 rounded-full transition-all ${
+                index === currentSlide ? 'bg-white w-8' : 'bg-white/50'
+              }`}
+            />
+          ))}
+        </div>
+
+        <div className="relative z-10 flex flex-col justify-end p-12 text-white">
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-6">
               <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
-                <Shield className="w-8 h-8" />
+                <Shield className="w-10 h-10" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">
-                  {mode === 'login' ? 'Staff Login' : 'Staff Registration'}
-                </h1>
-                <p className="text-green-100 text-sm">Secure Access Portal</p>
+                <h1 className="text-4xl font-bold">Staff Portal</h1>
+                <p className="text-green-100 text-lg">Secure Access for Team Members</p>
               </div>
             </div>
+
+            <h2 className="text-3xl font-bold mb-4">
+              Empowering Our Team to Excel
+            </h2>
+            <p className="text-xl text-green-100 leading-relaxed max-w-md">
+              Dedicated staff portal for managing student programs, tracking progress,
+              and coordinating efforts across the organization.
+            </p>
           </div>
+
+          <div className="grid grid-cols-3 gap-4 max-w-md">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <p className="text-3xl font-bold mb-1">50+</p>
+              <p className="text-sm text-green-100">Staff Members</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <p className="text-3xl font-bold mb-1">24/7</p>
+              <p className="text-sm text-green-100">Secure Access</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <p className="text-3xl font-bold mb-1">100%</p>
+              <p className="text-sm text-green-100">Encrypted</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-green-50 via-white to-emerald-50">
+        <div className="w-full max-w-md">
+          <div className="lg:hidden text-center mb-8">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="bg-green-600 p-3 rounded-xl">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold text-slate-800 mb-2">Staff Portal</h1>
+            <p className="text-green-600">Secure Team Access</p>
+          </div>
+
+          <button
+            onClick={onSwitchToGoogle}
+            className="mb-6 flex items-center gap-2 text-green-700 hover:text-green-800 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm font-medium">Back to Google Sign-In</span>
+          </button>
+
+          <div className="bg-white rounded-2xl shadow-2xl border border-green-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-8 text-white">
+              <div className="hidden lg:block text-center">
+                <h2 className="text-2xl font-bold mb-2">
+                  {mode === 'login' ? 'Welcome Back' : 'Join Our Team'}
+                </h2>
+                <p className="text-green-100">
+                  {mode === 'login' ? 'Sign in to access your account' : 'Register to get started'}
+                </p>
+              </div>
+              <div className="lg:hidden text-center">
+                <h2 className="text-xl font-bold">
+                  {mode === 'login' ? 'Welcome' : 'Register'}
+                </h2>
+              </div>
+            </div>
 
           <div className="p-8">
             {error && (
@@ -433,26 +556,27 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
             )}
           </div>
 
-          <div className="bg-green-50 px-8 py-6 border-t border-green-100">
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-green-700">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span>Secure Authentication</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span>Encrypted Storage</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span>Account Security</span>
+            <div className="bg-green-50 px-8 py-6 border-t border-green-100">
+              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-green-700">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                  <span>Secure Authentication</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                  <span>Encrypted Storage</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                  <span>Account Security</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-6 text-center text-sm text-slate-500">
-          <p>© {new Date().getFullYear()} Family Legacy Zambia. All rights reserved.</p>
+          <div className="mt-6 text-center text-sm text-slate-500">
+            <p>© {new Date().getFullYear()} Family Legacy Zambia. All rights reserved.</p>
+          </div>
         </div>
       </div>
     </div>
