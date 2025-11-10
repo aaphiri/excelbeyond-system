@@ -6,9 +6,9 @@ import { BookOpen, AlertCircle, Loader2, Shield, ChevronLeft, ChevronRight } fro
 const studentImages = [
   '/images/086A0045.jpg',
   '/images/Lusubilo Gondwe.jpg',
-  'https://images.pexels.com/photos/5212345/pexels-photo-5212345.jpeg',
-  'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg',
-  'https://images.pexels.com/photos/3184306/pexels-photo-3184306.jpeg',
+  '/images/086A4113.jpg',
+  '/images/086A4851.jpg',
+  '/images/086A9775.jpg',
 ];
 
 const GoogleLoginPage: React.FC = () => {
