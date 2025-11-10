@@ -16,6 +16,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { staffLogin, staffRegister, RegisterRequest } from '../lib/staffAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 const staffImages = [
   'https://images.pexels.com/photos/3184357/pexels-photo-3184357.jpeg',
@@ -30,6 +31,7 @@ interface StaffLoginProps {
 }
 
 const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
+  const { user, loading: authLoading } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [staffId, setStaffId] = useState('');
   const [password, setPassword] = useState('');
@@ -51,6 +53,12 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
   });
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -77,7 +85,7 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
 
       window.dispatchEvent(new CustomEvent('staff-login', { detail: result.user }));
 
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (error: any) {
       console.error('Login error:', error);
       setError(error.message || 'Failed to login. Please try again.');
@@ -137,6 +145,17 @@ const StaffLoginPage: React.FC<StaffLoginProps> = ({ onSwitchToGoogle }) => {
   const prevSlide = () => {
     setCurrentSlide((prev) => (prev - 1 + staffImages.length) % staffImages.length);
   };
+
+  if (authLoading || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-green-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">{user ? 'Redirecting to dashboard...' : 'Loading...'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-white">
