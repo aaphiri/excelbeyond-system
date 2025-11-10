@@ -19,7 +19,7 @@ import { staffLogin, staffRegister, RegisterRequest } from '../lib/staffAuth';
 import { useAuth } from '../contexts/AuthContext';
 
 const staffImages = [
-  'https://images.pexels.com/photos/3184357/pexels-photo-3184357.jpeg',
+  '/images/086A0045.jpg',
   'https://images.pexels.com/photos/8923123/pexels-photo-8923123.jpeg',
   'https://images.pexels.com/photos/3184287/pexels-photo-3184287.jpeg',
   'https://images.pexels.com/photos/5212317/pexels-photo-5212317.jpeg',
