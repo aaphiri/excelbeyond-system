@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Plus, 
@@ -19,6 +19,7 @@ import {
   User as UserIcon
 } from 'lucide-react';
 import { User, UserProfile, Role } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface UserManagementProps {
   user: User;
@@ -30,126 +31,205 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'program_officer' as 'admin' | 'program_officer' | 'deputy_manager' | 'flmi_senior_advisor' | 'program_manager',
+    department: '',
+    phone_number: ''
+  });
 
-  // Mock user data
-  const users: UserProfile[] = [
-    {
-      id: '1',
-      name: 'John Mwanza',
-      firstName: 'John',
-      lastName: 'Mwanza',
-      email: 'john.mwanza@familylegacy.zm',
-      role: 'admin',
-      department: 'Administration',
-      phoneNumber: '+260 977 123 456',
-      address: 'Lusaka, Zambia',
-      dateOfBirth: '1985-03-15',
-      isActive: true,
-      lastLogin: '2024-03-15T10:30:00Z',
-      createdDate: '2023-01-15',
-      updatedDate: '2024-03-15',
-      createdBy: 'system',
-      permissions: ['all'],
-      emergencyContact: {
-        name: 'Mary Mwanza',
-        phone: '+260 966 789 012',
-        relationship: 'Spouse'
-      }
-    },
-    {
-      id: '2',
-      name: 'Sarah Banda',
-      firstName: 'Sarah',
-      lastName: 'Banda',
-      email: 'sarah.banda@familylegacy.zm',
-      role: 'program_officer',
-      department: 'Student Affairs',
-      phoneNumber: '+260 955 234 567',
-      address: 'Lusaka, Zambia',
-      dateOfBirth: '1990-07-22',
-      isActive: true,
-      lastLogin: '2024-03-15T09:15:00Z',
-      createdDate: '2023-02-20',
-      updatedDate: '2024-03-14',
-      createdBy: '1',
-      permissions: ['students.read', 'students.write', 'allowances.write', 'tasks.write'],
-      emergencyContact: {
-        name: 'Peter Banda',
-        phone: '+260 977 345 678',
-        relationship: 'Brother'
-      }
-    },
-    {
-      id: '3',
-      name: 'Michael Phiri',
-      firstName: 'Michael',
-      lastName: 'Phiri',
-      email: 'michael.phiri@familylegacy.zm',
-      role: 'deputy_manager',
-      department: 'Management',
-      phoneNumber: '+260 966 345 678',
-      address: 'Kitwe, Zambia',
-      dateOfBirth: '1988-11-10',
-      isActive: true,
-      lastLogin: '2024-03-15T08:45:00Z',
-      createdDate: '2023-01-20',
-      updatedDate: '2024-03-13',
-      createdBy: '1',
-      permissions: ['allowances.approve', 'students.read', 'tasks.read', 'reports.read'],
-      emergencyContact: {
-        name: 'Grace Phiri',
-        phone: '+260 955 456 789',
-        relationship: 'Spouse'
-      }
-    },
-    {
-      id: '4',
-      name: 'Grace Tembo',
-      firstName: 'Grace',
-      lastName: 'Tembo',
-      email: 'grace.tembo@student.unza.zm',
-      role: 'student',
-      department: 'Engineering',
-      phoneNumber: '+260 977 456 789',
-      address: 'Lusaka, Zambia',
-      dateOfBirth: '2001-05-18',
-      isActive: true,
-      lastLogin: '2024-03-14T20:30:00Z',
-      createdDate: '2022-01-15',
-      updatedDate: '2024-03-14',
-      createdBy: '2',
-      permissions: ['profile.read', 'profile.write', 'library.read', 'events.read'],
-      emergencyContact: {
-        name: 'Mary Tembo',
-        phone: '+260 966 567 890',
-        relationship: 'Mother'
-      }
-    },
-    {
-      id: '5',
-      name: 'David Mulenga',
-      firstName: 'David',
-      lastName: 'Mulenga',
-      email: 'david.mulenga@familylegacy.zm',
-      role: 'program_officer',
-      department: 'Student Affairs',
-      phoneNumber: '+260 955 567 890',
-      address: 'Ndola, Zambia',
-      dateOfBirth: '1992-09-03',
-      isActive: false,
-      lastLogin: '2024-02-28T16:20:00Z',
-      createdDate: '2023-06-10',
-      updatedDate: '2024-02-28',
-      createdBy: '1',
-      permissions: ['students.read', 'students.write', 'allowances.write'],
-      emergencyContact: {
-        name: 'Jane Mulenga',
-        phone: '+260 977 678 901',
-        relationship: 'Sister'
-      }
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
     }
-  ];
+  }, [notification]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('staff')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedUsers: UserProfile[] = (data || []).map(staff => {
+        const [firstName, ...lastNameParts] = staff.name.split(' ');
+        return {
+          id: staff.id,
+          name: staff.name,
+          firstName: firstName,
+          lastName: lastNameParts.join(' ') || '',
+          email: staff.email,
+          role: staff.role || 'program_officer',
+          department: staff.department || 'Not assigned',
+          phoneNumber: staff.phone_number,
+          isActive: staff.is_active,
+          lastLogin: staff.last_login,
+          createdDate: staff.created_at,
+          updatedDate: staff.updated_at,
+          createdBy: staff.created_by || 'system',
+          permissions: getRolePermissions(staff.role)
+        };
+      });
+
+      setUsers(formattedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setNotification({ type: 'error', message: 'Failed to load users' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getRolePermissions = (role: string): string[] => {
+    switch (role) {
+      case 'admin':
+        return ['all'];
+      case 'program_officer':
+        return ['students.read', 'students.write', 'allowances.write', 'tasks.write', 'forms.write'];
+      case 'deputy_manager':
+        return ['allowances.approve', 'students.read', 'tasks.read', 'reports.read'];
+      case 'flmi_senior_advisor':
+        return ['allowances.review', 'students.read', 'reports.read'];
+      case 'program_manager':
+        return ['allowances.final_approve', 'students.read', 'reports.read', 'users.read'];
+      default:
+        return [];
+    }
+  };
+
+  const handleAddUser = async () => {
+    try {
+      if (!newUser.name || !newUser.email || !newUser.password) {
+        setNotification({ type: 'error', message: 'Please fill in all required fields' });
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('staff_register', {
+        p_staff_id: newUser.email.split('@')[0],
+        p_email: newUser.email,
+        p_password: newUser.password,
+        p_name: newUser.name,
+        p_role: newUser.role,
+        p_department: newUser.department,
+        p_phone_number: newUser.phone_number
+      });
+
+      if (error) throw error;
+
+      setNotification({ type: 'success', message: 'User added successfully' });
+      setShowAddModal(false);
+      setNewUser({
+        name: '',
+        email: '',
+        password: '',
+        role: 'program_officer',
+        department: '',
+        phone_number: ''
+      });
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error adding user:', error);
+      setNotification({ type: 'error', message: error.message || 'Failed to add user' });
+    }
+  };
+
+  const handleUpdateUserRole = async (userId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .update({ role: newRole, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setNotification({ type: 'success', message: 'User role updated successfully' });
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error updating user role:', error);
+      setNotification({ type: 'error', message: 'Failed to update user role' });
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .update({
+          is_active: !currentStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setNotification({
+        type: 'success',
+        message: `User ${!currentStatus ? 'activated' : 'deactivated'} successfully`
+      });
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error toggling user status:', error);
+      setNotification({ type: 'error', message: 'Failed to update user status' });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .delete()
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setNotification({ type: 'success', message: 'User deleted successfully' });
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      setNotification({ type: 'error', message: 'Failed to delete user' });
+    }
+  };
+
+  const handleResetPassword = async (userId: string, email: string) => {
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .update({
+          password_reset_required: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setNotification({
+        type: 'success',
+        message: 'Password reset required flag set. User will need to reset password on next login.'
+      });
+    } catch (error: any) {
+      console.error('Error setting password reset:', error);
+      setNotification({ type: 'error', message: 'Failed to initiate password reset' });
+    }
+  };
 
   // Mock roles data
   const roles: Role[] = [
@@ -236,8 +316,42 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
     inactive: users.filter(u => !u.isActive).length,
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading users...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 max-w-md">
+          <div className={`rounded-lg shadow-lg p-4 ${
+            notification.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+          }`}>
+            <div className="flex items-center justify-between">
+              <p className={`text-sm font-medium ${
+                notification.type === 'success' ? 'text-green-800' : 'text-red-800'
+              }`}>
+                {notification.message}
+              </p>
+              <button
+                onClick={() => setNotification(null)}
+                className={notification.type === 'success' ? 'text-green-600' : 'text-red-600'}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-16 right-16 w-48 h-48 bg-blue-600 rounded-full animate-pulse"></div>
@@ -448,24 +562,44 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
 
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                 <div className="text-xs text-gray-500">
-                  ID: {userProfile.id}
+                  {user.role === 'admin' ? `ID: ${userProfile.id.slice(0, 8)}...` : 'Staff Member'}
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button 
+                  <button
                     onClick={() => setSelectedUser(userProfile)}
                     className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                    title="View Details"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg">
-                    {userProfile.isActive ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                  </button>
+                  {(user.role === 'admin' || user.role === 'program_manager') && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setSelectedUser(userProfile);
+                          setShowEditModal(true);
+                        }}
+                        className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                        title="Edit User"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(userProfile.id)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        title="Delete User"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleToggleUserStatus(userProfile.id, userProfile.isActive)}
+                        className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
+                        title={userProfile.isActive ? 'Deactivate User' : 'Activate User'}
+                      >
+                        {userProfile.isActive ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -479,8 +613,188 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
           </div>
         )}
 
+        {/* Add User Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-lg w-full">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Add New User</h3>
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    value={newUser.name}
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="john@familylegacy.zm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                  <input
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Minimum 8 characters"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                  <select
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as any })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="program_officer">Program Officer</option>
+                    <option value="deputy_manager">Deputy Manager</option>
+                    <option value="flmi_senior_advisor">FLMI Senior Advisor</option>
+                    <option value="program_manager">Program Manager</option>
+                    {user.role === 'admin' && <option value="admin">Admin</option>}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                  <input
+                    type="text"
+                    value={newUser.department}
+                    onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Student Affairs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    value={newUser.phone_number}
+                    onChange={(e) => setNewUser({ ...newUser, phone_number: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="+260 977 123 456"
+                  />
+                </div>
+              </div>
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddUser}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Add User
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Role Modal */}
+        {showEditModal && selectedUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-lg w-full">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Edit User Role</h3>
+                  <button
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setSelectedUser(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Update role for: <span className="font-medium text-gray-900">{selectedUser.name}</span>
+                  </p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <select
+                    defaultValue={selectedUser.role}
+                    onChange={(e) => handleUpdateUserRole(selectedUser.id, e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="program_officer">Program Officer</option>
+                    <option value="deputy_manager">Deputy Manager</option>
+                    <option value="flmi_senior_advisor">FLMI Senior Advisor</option>
+                    <option value="program_manager">Program Manager</option>
+                    {user.role === 'admin' && <option value="admin">Admin</option>}
+                  </select>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-2">Role Permissions</h4>
+                  <div className="space-y-1 text-sm text-blue-800">
+                    {getRolePermissions(selectedUser.role).map((perm, index) => (
+                      <div key={index}>• {perm}</div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleResetPassword(selectedUser.id, selectedUser.email)}
+                    className="flex-1 px-4 py-2 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50"
+                  >
+                    Reset Password
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleToggleUserStatus(selectedUser.id, selectedUser.isActive);
+                      setShowEditModal(false);
+                    }}
+                    className={`flex-1 px-4 py-2 rounded-lg ${
+                      selectedUser.isActive
+                        ? 'border border-red-300 text-red-700 hover:bg-red-50'
+                        : 'border border-green-300 text-green-700 hover:bg-green-50'
+                    }`}
+                  >
+                    {selectedUser.isActive ? 'Deactivate' : 'Activate'}
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 border-t border-gray-200 flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedUser(null);
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* User Detail Modal */}
-        {selectedUser && (
+        {selectedUser && !showEditModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-gray-200">
