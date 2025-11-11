@@ -193,26 +193,56 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
     if (!photoFile) return null;
 
     try {
-      const fileExt = photoFile.name.split('.').pop();
+      const fileExt = photoFile.name.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${studentId}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const filePath = fileName;
 
-      const { error: uploadError } = await supabase.storage
+      console.log('Uploading photo:', { fileName, fileSize: photoFile.size, fileType: photoFile.type });
+
+      // Delete old photo if exists (optional cleanup)
+      try {
+        const { data: existingFiles } = await supabase.storage
+          .from('student-photos')
+          .list('', {
+            search: studentId
+          });
+
+        if (existingFiles && existingFiles.length > 0) {
+          const filesToDelete = existingFiles.map(f => f.name);
+          await supabase.storage
+            .from('student-photos')
+            .remove(filesToDelete);
+        }
+      } catch (cleanupError) {
+        console.log('Cleanup error (non-critical):', cleanupError);
+      }
+
+      // Upload the new photo
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('student-photos')
-        .upload(filePath, photoFile, { upsert: true });
+        .upload(filePath, photoFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
+        showNotification('error', `Failed to upload photo: ${uploadError.message}`);
         throw uploadError;
       }
 
+      console.log('Upload successful:', uploadData);
+
+      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('student-photos')
         .getPublicUrl(filePath);
 
+      console.log('Public URL:', publicUrl);
       return publicUrl;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading photo:', error);
+      showNotification('error', `Photo upload failed: ${error.message || 'Unknown error'}`);
       throw error;
     }
   };
@@ -246,19 +276,19 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
         try {
           const photoUrl = await uploadPhoto(newStudent.id);
           if (photoUrl) {
-            await supabase
+            const { error: updateError } = await supabase
               .from('students')
               .update({ profile_photo_url: photoUrl })
               .eq('id', newStudent.id);
+
+            if (updateError) {
+              console.error('Error updating photo URL:', updateError);
+              showNotification('success', 'Student added but failed to save photo URL');
+            }
           }
         } catch (photoError) {
           console.error('Error uploading photo:', photoError);
-          showNotification('error', 'Student added but photo upload failed');
-          setUploading(false);
-          setShowAddModal(false);
-          resetForm();
-          fetchStudents();
-          return;
+          showNotification('success', 'Student added successfully (photo upload failed)');
         }
       }
 
@@ -303,13 +333,11 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
         try {
           const photoUrl = await uploadPhoto(selectedStudent.id);
           if (photoUrl) {
-            studentData.profile_photo_url = photoUrl;
+            (studentData as any).profile_photo_url = photoUrl;
           }
         } catch (photoError) {
           console.error('Error uploading photo:', photoError);
-          showNotification('error', 'Failed to upload photo');
-          setUploading(false);
-          return;
+          // Continue with update even if photo fails - user can try again
         }
       }
 
