@@ -87,10 +87,18 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('students')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
+
+      // Application-level access control
+      if (user?.role === 'program_officer') {
+        // Program officers only see their assigned students
+        query = query.eq('assigned_officer_id', user.id);
+      }
+      // Admins and deputy managers see all students (no filter needed)
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching students:', error);
@@ -157,6 +165,17 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
 
     if (!selectedStudent) return;
 
+    // Application-level access control
+    const canEdit =
+      user?.role === 'admin' ||
+      user?.role === 'deputy_manager' ||
+      (user?.role === 'program_officer' && selectedStudent.assigned_officer_id === user?.id);
+
+    if (!canEdit) {
+      showNotification('error', 'You do not have permission to edit this student');
+      return;
+    }
+
     try {
       const studentData = {
         ...formData,
@@ -186,6 +205,12 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
   };
 
   const handleDeleteStudent = async (id: string) => {
+    // Application-level access control: Only admins can delete
+    if (user?.role !== 'admin') {
+      showNotification('error', 'Only administrators can delete students');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this student? This action cannot be undone.')) return;
 
     try {
