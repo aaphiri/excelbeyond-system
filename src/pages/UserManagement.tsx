@@ -36,6 +36,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
@@ -114,37 +115,68 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
 
   const handleAddUser = async () => {
     try {
+      setSubmitting(true);
+
       if (!newUser.name || !newUser.email || !newUser.password) {
         setNotification({ type: 'error', message: 'Please fill in all required fields' });
         return;
       }
 
+      if (newUser.password.length < 6) {
+        setNotification({ type: 'error', message: 'Password must be at least 6 characters long' });
+        return;
+      }
+
+      if (!newUser.email.includes('@')) {
+        setNotification({ type: 'error', message: 'Please enter a valid email address' });
+        return;
+      }
+
+      const staffId = newUser.email.split('@')[0] + '_' + Date.now().toString().slice(-6);
+
       const { data, error } = await supabase.rpc('staff_register', {
-        p_staff_id: newUser.email.split('@')[0],
+        p_staff_id: staffId,
         p_email: newUser.email,
         p_password: newUser.password,
         p_name: newUser.name,
         p_role: newUser.role,
-        p_department: newUser.department,
-        p_phone_number: newUser.phone_number
+        p_department: newUser.department || null,
+        p_phone_number: newUser.phone_number || null
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase RPC error:', error);
+        throw error;
+      }
 
-      setNotification({ type: 'success', message: 'User added successfully' });
-      setShowAddModal(false);
-      setNewUser({
-        name: '',
-        email: '',
-        password: '',
-        role: 'program_officer',
-        department: '',
-        phone_number: ''
-      });
-      fetchUsers();
+      if (data && typeof data === 'object') {
+        if (data.success === false) {
+          setNotification({ type: 'error', message: data.error || 'Failed to add user' });
+          return;
+        }
+
+        setNotification({ type: 'success', message: data.message || 'User added successfully' });
+        setShowAddModal(false);
+        setNewUser({
+          name: '',
+          email: '',
+          password: '',
+          role: 'program_officer',
+          department: '',
+          phone_number: ''
+        });
+        await fetchUsers();
+      } else {
+        throw new Error('Unexpected response from server');
+      }
     } catch (error: any) {
       console.error('Error adding user:', error);
-      setNotification({ type: 'error', message: error.message || 'Failed to add user' });
+      setNotification({
+        type: 'error',
+        message: error.message || 'Failed to add user. Please try again.'
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -637,17 +669,25 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                     onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="John Doe"
+                    required
                   />
+                  {newUser.name && newUser.name.length < 2 && (
+                    <p className="text-xs text-red-600 mt-1">Name must be at least 2 characters</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                   <input
                     type="email"
                     value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value.toLowerCase() })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="john@familylegacy.zm"
+                    required
                   />
+                  {newUser.email && !newUser.email.includes('@') && (
+                    <p className="text-xs text-red-600 mt-1">Please enter a valid email address</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
@@ -656,8 +696,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Minimum 8 characters"
+                    placeholder="Minimum 6 characters"
+                    required
+                    minLength={6}
                   />
+                  {newUser.password && newUser.password.length < 6 && (
+                    <p className="text-xs text-red-600 mt-1">Password must be at least 6 characters</p>
+                  )}
+                  {newUser.password && newUser.password.length >= 6 && (
+                    <p className="text-xs text-green-600 mt-1">✓ Password meets requirements</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
@@ -696,16 +744,34 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
               </div>
               <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
                 <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setNewUser({
+                      name: '',
+                      email: '',
+                      password: '',
+                      role: 'program_officer',
+                      department: '',
+                      phone_number: ''
+                    });
+                  }}
+                  disabled={submitting}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddUser}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={submitting || !newUser.name || !newUser.email || newUser.password.length < 6}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Add User
+                  {submitting && (
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {submitting ? 'Adding User...' : 'Add User'}
                 </button>
               </div>
             </div>
