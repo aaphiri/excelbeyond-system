@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Search, Upload, Eye, Edit, Trash2, GraduationCap, Award, X, CheckCircle2, AlertCircle, Download } from 'lucide-react';
+import { Users, Plus, Search, Upload, Eye, Edit, Trash2, GraduationCap, Award, X, CheckCircle2, AlertCircle, Download, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { User as UserType } from '../types';
 import { supabase } from '../lib/supabase';
 import Papa from 'papaparse';
@@ -48,6 +48,12 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<'all' | 'university' | 'diploma' | 'launch_year'>('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterAcademicStanding, setFilterAcademicStanding] = useState('all');
+  const [filterGender, setFilterGender] = useState('all');
+  const [filterInstitution, setFilterInstitution] = useState('all');
+  const [filterCommunity, setFilterCommunity] = useState('all');
+  const [filterOfficer, setFilterOfficer] = useState('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -498,16 +504,49 @@ Jane,Smith,jane.smith@example.com,+260966789012,Ndola,diploma,enrolled,excellent
     window.URL.revokeObjectURL(url);
   };
 
+  const uniqueInstitutions = Array.from(new Set(students.map(s => s.institution_name).filter(Boolean)));
+  const uniqueCommunities = Array.from(new Set(students.map(s => s.community).filter(Boolean)));
+  const uniqueOfficers = Array.from(new Set(students.map(s => s.assigned_officer_name).filter(Boolean)));
+
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.institution_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                         student.institution_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.contact_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.nrc_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.chl_number?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCategory = filterCategory === 'all' || student.program_level === filterCategory;
     const matchesStatus = filterStatus === 'all' || student.program_status === filterStatus;
+    const matchesAcademicStanding = filterAcademicStanding === 'all' || student.academic_standing === filterAcademicStanding;
+    const matchesGender = filterGender === 'all' || student.gender === filterGender;
+    const matchesInstitution = filterInstitution === 'all' || student.institution_name === filterInstitution;
+    const matchesCommunity = filterCommunity === 'all' || student.community === filterCommunity;
+    const matchesOfficer = filterOfficer === 'all' || student.assigned_officer_name === filterOfficer;
 
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesSearch && matchesCategory && matchesStatus && matchesAcademicStanding &&
+           matchesGender && matchesInstitution && matchesCommunity && matchesOfficer;
   });
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setFilterCategory('all');
+    setFilterStatus('all');
+    setFilterAcademicStanding('all');
+    setFilterGender('all');
+    setFilterInstitution('all');
+    setFilterCommunity('all');
+    setFilterOfficer('all');
+  };
+
+  const activeFiltersCount = [
+    filterStatus !== 'all',
+    filterAcademicStanding !== 'all',
+    filterGender !== 'all',
+    filterInstitution !== 'all',
+    filterCommunity !== 'all',
+    filterOfficer !== 'all',
+  ].filter(Boolean).length;
 
   const getCategoryStats = () => {
     return {
@@ -676,7 +715,7 @@ Jane,Smith,jane.smith@example.com,+260966789012,Ndola,diploma,enrolled,excellent
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search students..."
+                placeholder="Search by name, email, institution, contact, NRC, or CHL number..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -695,6 +734,24 @@ Jane,Smith,jane.smith@example.com,+260966789012,Ndola,diploma,enrolled,excellent
               <option value="discharged">Discharged</option>
               <option value="transferred">Transferred</option>
             </select>
+
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap relative ${
+                activeFiltersCount > 0
+                  ? 'bg-blue-100 text-blue-700 border-2 border-blue-500'
+                  : 'bg-slate-100 text-slate-700 border-2 border-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              <Filter className="w-5 h-5" />
+              <span>Filters</span>
+              {activeFiltersCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+              {showAdvancedFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
 
             <button
               onClick={() => setShowImportModal(true)}
@@ -716,6 +773,110 @@ Jane,Smith,jane.smith@example.com,+260966789012,Ndola,diploma,enrolled,excellent
             </button>
           </div>
         </div>
+
+        {showAdvancedFilters && (
+          <div className="p-4 bg-slate-50 border-b border-slate-200">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Advanced Filters
+                {activeFiltersCount > 0 && (
+                  <span className="text-blue-600">({activeFiltersCount} active)</span>
+                )}
+              </h3>
+              {activeFiltersCount > 0 && (
+                <button
+                  onClick={clearAllFilters}
+                  className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  Clear All Filters
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Academic Standing</label>
+                <select
+                  value={filterAcademicStanding}
+                  onChange={(e) => setFilterAcademicStanding(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="all">All Standings</option>
+                  <option value="excellent">Excellent</option>
+                  <option value="good">Good</option>
+                  <option value="probation">Probation</option>
+                  <option value="warning">Warning</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Gender</label>
+                <select
+                  value={filterGender}
+                  onChange={(e) => setFilterGender(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="all">All Genders</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Institution</label>
+                <select
+                  value={filterInstitution}
+                  onChange={(e) => setFilterInstitution(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="all">All Institutions</option>
+                  {uniqueInstitutions.map(institution => (
+                    <option key={institution} value={institution}>{institution}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Community</label>
+                <select
+                  value={filterCommunity}
+                  onChange={(e) => setFilterCommunity(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="all">All Communities</option>
+                  {uniqueCommunities.map(community => (
+                    <option key={community} value={community}>{community}</option>
+                  ))}
+                </select>
+              </div>
+
+              {(user?.role === 'admin' || user?.role === 'deputy_manager') && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Assigned Officer</label>
+                  <select
+                    value={filterOfficer}
+                    onChange={(e) => setFilterOfficer(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="all">All Officers</option>
+                    {uniqueOfficers.map(officer => (
+                      <option key={officer} value={officer}>{officer}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">Showing {filteredStudents.length}</span> of {students.length} students
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full">
