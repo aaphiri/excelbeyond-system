@@ -3,6 +3,7 @@ import { Users, Plus, Search, Upload, Eye, Edit, Trash2, GraduationCap, Award, X
 import { User as UserType } from '../types';
 import { supabase } from '../lib/supabase';
 import Papa from 'papaparse';
+import StudentForm from '../components/StudentForm';
 
 interface StudentManagementProps {
   user?: UserType;
@@ -60,14 +61,31 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
     email: '',
     contact_number: '',
     community: '',
+    date_of_birth: '',
+    gender: '',
+    nrc_number: '',
+    chl_number: '',
+    school_id_number: '',
     program_level: 'university' as 'university' | 'diploma' | 'launch_year',
     program_status: 'enrolled' as 'enrolled' | 'graduated' | 'discharged' | 'suspended' | 'transferred',
     academic_standing: 'good' as 'excellent' | 'good' | 'probation' | 'warning',
     institution_name: '',
+    institution_location: '',
     current_program: '',
+    area_of_study: '',
+    start_date: '',
+    expected_end_date: '',
+    guardian_full_name: '',
+    guardian_contact_number: '',
+    guardian_community: '',
+    guardian_relationship: '',
     assigned_officer_id: '',
     assigned_officer_name: ''
   });
+
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchStudents();
@@ -121,18 +139,87 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
       email: '',
       contact_number: '',
       community: '',
+      date_of_birth: '',
+      gender: '',
+      nrc_number: '',
+      chl_number: '',
+      school_id_number: '',
       program_level: 'university',
       program_status: 'enrolled',
       academic_standing: 'good',
       institution_name: '',
+      institution_location: '',
       current_program: '',
+      area_of_study: '',
+      start_date: '',
+      expected_end_date: '',
+      guardian_full_name: '',
+      guardian_contact_number: '',
+      guardian_community: '',
+      guardian_relationship: '',
       assigned_officer_id: '',
       assigned_officer_name: ''
     });
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification('error', 'Photo size must be less than 5MB');
+        return;
+      }
+      if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+        showNotification('error', 'Photo must be JPEG, PNG, or WebP format');
+        return;
+      }
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoRemove = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
+
+  const uploadPhoto = async (studentId: string): Promise<string | null> => {
+    if (!photoFile) return null;
+
+    try {
+      const fileExt = photoFile.name.split('.').pop();
+      const fileName = `${studentId}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('student-photos')
+        .upload(filePath, photoFile, { upsert: true });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('student-photos')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      throw error;
+    }
   };
 
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploading(true);
 
     try {
       const studentData = {
@@ -142,12 +229,37 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
         assigned_officer_name: formData.assigned_officer_name || user?.name
       };
 
-      const { error } = await supabase.from('students').insert([studentData]);
+      const { data: newStudent, error } = await supabase
+        .from('students')
+        .insert([studentData])
+        .select()
+        .single();
 
       if (error) {
         console.error('Error adding student:', error);
         showNotification('error', 'Failed to add student: ' + error.message);
+        setUploading(false);
         return;
+      }
+
+      if (photoFile && newStudent) {
+        try {
+          const photoUrl = await uploadPhoto(newStudent.id);
+          if (photoUrl) {
+            await supabase
+              .from('students')
+              .update({ profile_photo_url: photoUrl })
+              .eq('id', newStudent.id);
+          }
+        } catch (photoError) {
+          console.error('Error uploading photo:', photoError);
+          showNotification('error', 'Student added but photo upload failed');
+          setUploading(false);
+          setShowAddModal(false);
+          resetForm();
+          fetchStudents();
+          return;
+        }
       }
 
       showNotification('success', 'Student added successfully');
@@ -157,6 +269,8 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
     } catch (error: any) {
       console.error('Error:', error);
       showNotification('error', 'An error occurred while adding the student');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -176,11 +290,28 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
       return;
     }
 
+    setUploading(true);
+
     try {
       const studentData = {
         ...formData,
         full_name: `${formData.first_name} ${formData.last_name}`,
       };
+
+      // Upload new photo if selected
+      if (photoFile) {
+        try {
+          const photoUrl = await uploadPhoto(selectedStudent.id);
+          if (photoUrl) {
+            studentData.profile_photo_url = photoUrl;
+          }
+        } catch (photoError) {
+          console.error('Error uploading photo:', photoError);
+          showNotification('error', 'Failed to upload photo');
+          setUploading(false);
+          return;
+        }
+      }
 
       const { error } = await supabase
         .from('students')
@@ -190,6 +321,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
       if (error) {
         console.error('Error updating student:', error);
         showNotification('error', 'Failed to update student: ' + error.message);
+        setUploading(false);
         return;
       }
 
@@ -201,6 +333,8 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
     } catch (error: any) {
       console.error('Error:', error);
       showNotification('error', 'An error occurred while updating the student');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -238,14 +372,29 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ user }) => {
       email: student.email || '',
       contact_number: student.contact_number || '',
       community: student.community || '',
+      date_of_birth: student.date_of_birth || '',
+      gender: student.gender || '',
+      nrc_number: student.nrc_number || '',
+      chl_number: student.chl_number || '',
+      school_id_number: student.school_id_number || '',
       program_level: student.program_level,
       program_status: student.program_status,
       academic_standing: student.academic_standing,
       institution_name: student.institution_name || '',
+      institution_location: student.institution_location || '',
       current_program: student.current_program || '',
+      area_of_study: student.area_of_study || '',
+      start_date: student.start_date || '',
+      expected_end_date: student.expected_end_date || '',
+      guardian_full_name: student.guardian_full_name || '',
+      guardian_contact_number: student.guardian_contact_number || '',
+      guardian_community: student.guardian_community || '',
+      guardian_relationship: student.guardian_relationship || '',
       assigned_officer_id: student.assigned_officer_id || '',
       assigned_officer_name: student.assigned_officer_name || ''
     });
+    setPhotoPreview(student.profile_photo_url || null);
+    setPhotoFile(null);
     setShowEditModal(true);
   };
 
@@ -657,136 +806,21 @@ Jane,Smith,jane.smith@example.com,+260966789012,Ndola,diploma,enrolled,excellent
             </div>
 
             <form onSubmit={handleAddStudent} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.first_name}
-                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="John"
-                  />
-                </div>
+              <StudentForm
+                formData={formData}
+                setFormData={setFormData}
+                photoPreview={photoPreview}
+                onPhotoChange={handlePhotoChange}
+                onPhotoRemove={handlePhotoRemove}
+              />
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.last_name}
-                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Doe"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="john.doe@example.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
-                  <input
-                    type="tel"
-                    value={formData.contact_number}
-                    onChange={(e) => setFormData({ ...formData, contact_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="+260977123456"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Community</label>
-                  <input
-                    type="text"
-                    value={formData.community}
-                    onChange={(e) => setFormData({ ...formData, community: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Lusaka"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Program Category *</label>
-                  <select
-                    required
-                    value={formData.program_level}
-                    onChange={(e) => setFormData({ ...formData, program_level: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="university">University</option>
-                    <option value="diploma">College/Diploma</option>
-                    <option value="launch_year">Launch Year</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Institution Name</label>
-                  <input
-                    type="text"
-                    value={formData.institution_name}
-                    onChange={(e) => setFormData({ ...formData, institution_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="University of Zambia"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Current Program</label>
-                  <input
-                    type="text"
-                    value={formData.current_program}
-                    onChange={(e) => setFormData({ ...formData, current_program: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Computer Science"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Program Status</label>
-                  <select
-                    value={formData.program_status}
-                    onChange={(e) => setFormData({ ...formData, program_status: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="enrolled">Enrolled</option>
-                    <option value="graduated">Graduated</option>
-                    <option value="suspended">Suspended</option>
-                    <option value="discharged">Discharged</option>
-                    <option value="transferred">Transferred</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Academic Standing</label>
-                  <select
-                    value={formData.academic_standing}
-                    onChange={(e) => setFormData({ ...formData, academic_standing: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="excellent">Excellent</option>
-                    <option value="good">Good</option>
-                    <option value="probation">Probation</option>
-                    <option value="warning">Warning</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
+              <div className="flex gap-3 mt-6">
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  disabled={uploading}
+                  className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-blue-400 disabled:cursor-not-allowed"
                 >
-                  Add Student
+                  {uploading ? 'Adding Student...' : 'Add Student'}
                 </button>
                 <button
                   type="button"
@@ -822,129 +856,22 @@ Jane,Smith,jane.smith@example.com,+260966789012,Ndola,diploma,enrolled,excellent
             </div>
 
             <form onSubmit={handleEditStudent} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.first_name}
-                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+              <StudentForm
+                formData={formData}
+                setFormData={setFormData}
+                photoPreview={photoPreview}
+                onPhotoChange={handlePhotoChange}
+                onPhotoRemove={handlePhotoRemove}
+                isEdit={true}
+              />
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.last_name}
-                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
-                  <input
-                    type="tel"
-                    value={formData.contact_number}
-                    onChange={(e) => setFormData({ ...formData, contact_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Community</label>
-                  <input
-                    type="text"
-                    value={formData.community}
-                    onChange={(e) => setFormData({ ...formData, community: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Program Category *</label>
-                  <select
-                    required
-                    value={formData.program_level}
-                    onChange={(e) => setFormData({ ...formData, program_level: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="university">University</option>
-                    <option value="diploma">College/Diploma</option>
-                    <option value="launch_year">Launch Year</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Institution Name</label>
-                  <input
-                    type="text"
-                    value={formData.institution_name}
-                    onChange={(e) => setFormData({ ...formData, institution_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Current Program</label>
-                  <input
-                    type="text"
-                    value={formData.current_program}
-                    onChange={(e) => setFormData({ ...formData, current_program: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Program Status</label>
-                  <select
-                    value={formData.program_status}
-                    onChange={(e) => setFormData({ ...formData, program_status: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="enrolled">Enrolled</option>
-                    <option value="graduated">Graduated</option>
-                    <option value="suspended">Suspended</option>
-                    <option value="discharged">Discharged</option>
-                    <option value="transferred">Transferred</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Academic Standing</label>
-                  <select
-                    value={formData.academic_standing}
-                    onChange={(e) => setFormData({ ...formData, academic_standing: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="excellent">Excellent</option>
-                    <option value="good">Good</option>
-                    <option value="probation">Probation</option>
-                    <option value="warning">Warning</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
+              <div className="flex gap-3 mt-6">
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  disabled={uploading}
+                  className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-blue-400 disabled:cursor-not-allowed"
                 >
-                  Update Student
+                  {uploading ? 'Updating Student...' : 'Update Student'}
                 </button>
                 <button
                   type="button"
