@@ -973,77 +973,270 @@ Jane,Smith,jane.smith@example.com,+260966789012,Ndola,diploma,enrolled,excellent
       )}
 
       {showDetailModal && selectedStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-slate-800">Student Details</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] overflow-y-auto">
+            <div className="relative bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 p-8 text-white">
               <button
                 onClick={() => {
                   setShowDetailModal(false);
                   setSelectedStudent(null);
                 }}
-                className="text-slate-400 hover:text-slate-600"
+                className="absolute top-4 right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-all"
               >
                 <X className="w-6 h-6" />
               </button>
-            </div>
 
-            <div className="p-6">
-              <div className="flex items-center mb-6">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">
-                    {selectedStudent.first_name?.charAt(0)}{selectedStudent.last_name?.charAt(0)}
-                  </span>
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="group relative">
+                  {selectedStudent.profile_photo_url ? (
+                    <div className="relative">
+                      <img
+                        src={selectedStudent.profile_photo_url}
+                        alt={selectedStudent.full_name}
+                        className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-white shadow-xl transition-transform duration-300 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 rounded-full bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
+                        <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-sm font-medium">
+                          View Larger
+                        </span>
+                      </div>
+                      <div className="invisible group-hover:visible absolute left-full ml-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none">
+                        <img
+                          src={selectedStudent.profile_photo_url}
+                          alt={selectedStudent.full_name}
+                          className="w-80 h-80 rounded-2xl object-cover shadow-2xl border-4 border-white transform transition-all duration-300 scale-0 group-hover:scale-100"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center border-4 border-white shadow-xl">
+                      <span className="text-white font-bold text-5xl">
+                        {selectedStudent.first_name?.charAt(0)}{selectedStudent.last_name?.charAt(0)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="ml-4">
-                  <h3 className="text-2xl font-bold text-slate-800">{selectedStudent.full_name}</h3>
-                  <p className="text-slate-600">{selectedStudent.email || 'No email provided'}</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Contact Number</h3>
-                  <p className="text-slate-800">{selectedStudent.contact_number || 'Not provided'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Community</h3>
-                  <p className="text-slate-800">{selectedStudent.community || 'Not provided'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Program Category</h3>
-                  <div>{getProgramLevelBadge(selectedStudent.program_level)}</div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Status</h3>
-                  <div>{getStatusBadge(selectedStudent.program_status)}</div>
-                </div>
-                <div className="md:col-span-2">
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Current Program</h3>
-                  <p className="text-slate-800">{selectedStudent.current_program || 'Not specified'}</p>
-                </div>
-                <div className="md:col-span-2">
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Institution</h3>
-                  <p className="text-slate-800">{selectedStudent.institution_name || 'Not specified'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Assigned Officer</h3>
-                  <p className="text-slate-800">{selectedStudent.assigned_officer_name || 'Unassigned'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-slate-500 mb-1">Academic Standing</h3>
-                  <p className="text-slate-800 capitalize">{selectedStudent.academic_standing}</p>
-                </div>
-                {selectedStudent.overall_gpa && (
-                  <div>
-                    <h3 className="text-sm font-medium text-slate-500 mb-1">Overall GPA</h3>
-                    <p className="text-slate-800">{selectedStudent.overall_gpa.toFixed(2)}</p>
+                <div className="flex-1 text-center md:text-left">
+                  <h2 className="text-4xl font-bold mb-2 drop-shadow-lg">{selectedStudent.full_name}</h2>
+                  <p className="text-blue-100 text-lg mb-3">{selectedStudent.email || 'No email provided'}</p>
+                  <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                    {getProgramLevelBadge(selectedStudent.program_level)}
+                    {getStatusBadge(selectedStudent.program_status)}
                   </div>
-                )}
+                </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-200 flex gap-3">
+            <div className="p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                      <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
+                      Personal Information
+                    </h3>
+                    <div className="space-y-4 bg-slate-50 rounded-xl p-5">
+                      <div className="flex justify-between items-start">
+                        <span className="text-slate-600 font-medium">Contact Number</span>
+                        <span className="text-slate-900 font-semibold">{selectedStudent.contact_number || 'Not provided'}</span>
+                      </div>
+                      <div className="border-t border-slate-200"></div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-slate-600 font-medium">Community</span>
+                        <span className="text-slate-900 font-semibold">{selectedStudent.community || 'Not provided'}</span>
+                      </div>
+                      {selectedStudent.date_of_birth && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">Date of Birth</span>
+                            <span className="text-slate-900 font-semibold">{new Date(selectedStudent.date_of_birth).toLocaleDateString()}</span>
+                          </div>
+                        </>
+                      )}
+                      {selectedStudent.gender && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">Gender</span>
+                            <span className="text-slate-900 font-semibold capitalize">{selectedStudent.gender}</span>
+                          </div>
+                        </>
+                      )}
+                      {selectedStudent.nrc_number && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">NRC Number</span>
+                            <span className="text-slate-900 font-semibold">{selectedStudent.nrc_number}</span>
+                          </div>
+                        </>
+                      )}
+                      {selectedStudent.chl_number && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">CHL Number</span>
+                            <span className="text-slate-900 font-semibold">{selectedStudent.chl_number}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {(selectedStudent.guardian_full_name || selectedStudent.guardian_contact_number) && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                        <div className="w-1 h-5 bg-cyan-500 rounded-full"></div>
+                        Guardian Information
+                      </h3>
+                      <div className="space-y-4 bg-slate-50 rounded-xl p-5">
+                        {selectedStudent.guardian_full_name && (
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">Full Name</span>
+                            <span className="text-slate-900 font-semibold">{selectedStudent.guardian_full_name}</span>
+                          </div>
+                        )}
+                        {selectedStudent.guardian_contact_number && (
+                          <>
+                            <div className="border-t border-slate-200"></div>
+                            <div className="flex justify-between items-start">
+                              <span className="text-slate-600 font-medium">Contact</span>
+                              <span className="text-slate-900 font-semibold">{selectedStudent.guardian_contact_number}</span>
+                            </div>
+                          </>
+                        )}
+                        {selectedStudent.guardian_community && (
+                          <>
+                            <div className="border-t border-slate-200"></div>
+                            <div className="flex justify-between items-start">
+                              <span className="text-slate-600 font-medium">Community</span>
+                              <span className="text-slate-900 font-semibold">{selectedStudent.guardian_community}</span>
+                            </div>
+                          </>
+                        )}
+                        {selectedStudent.guardian_relationship && (
+                          <>
+                            <div className="border-t border-slate-200"></div>
+                            <div className="flex justify-between items-start">
+                              <span className="text-slate-600 font-medium">Relationship</span>
+                              <span className="text-slate-900 font-semibold capitalize">{selectedStudent.guardian_relationship}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                      <div className="w-1 h-5 bg-green-500 rounded-full"></div>
+                      Academic Information
+                    </h3>
+                    <div className="space-y-4 bg-slate-50 rounded-xl p-5">
+                      <div className="flex justify-between items-start">
+                        <span className="text-slate-600 font-medium">Institution</span>
+                        <span className="text-slate-900 font-semibold text-right">{selectedStudent.institution_name || 'Not specified'}</span>
+                      </div>
+                      {selectedStudent.institution_location && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">Location</span>
+                            <span className="text-slate-900 font-semibold">{selectedStudent.institution_location}</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="border-t border-slate-200"></div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-slate-600 font-medium">Current Program</span>
+                        <span className="text-slate-900 font-semibold text-right">{selectedStudent.current_program || 'Not specified'}</span>
+                      </div>
+                      {selectedStudent.area_of_study && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">Area of Study</span>
+                            <span className="text-slate-900 font-semibold text-right">{selectedStudent.area_of_study}</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="border-t border-slate-200"></div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-slate-600 font-medium">Academic Standing</span>
+                        <span className={`font-semibold capitalize ${
+                          selectedStudent.academic_standing === 'excellent' ? 'text-green-600' :
+                          selectedStudent.academic_standing === 'good' ? 'text-blue-600' :
+                          selectedStudent.academic_standing === 'probation' ? 'text-orange-600' :
+                          'text-red-600'
+                        }`}>
+                          {selectedStudent.academic_standing}
+                        </span>
+                      </div>
+                      {selectedStudent.start_date && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">Start Date</span>
+                            <span className="text-slate-900 font-semibold">{new Date(selectedStudent.start_date).toLocaleDateString()}</span>
+                          </div>
+                        </>
+                      )}
+                      {selectedStudent.expected_end_date && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">Expected End Date</span>
+                            <span className="text-slate-900 font-semibold">{new Date(selectedStudent.expected_end_date).toLocaleDateString()}</span>
+                          </div>
+                        </>
+                      )}
+                      {selectedStudent.overall_gpa && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">Overall GPA</span>
+                            <span className="text-slate-900 font-bold text-lg">{selectedStudent.overall_gpa.toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                      {selectedStudent.school_id_number && (
+                        <>
+                          <div className="border-t border-slate-200"></div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-slate-600 font-medium">School ID</span>
+                            <span className="text-slate-900 font-semibold">{selectedStudent.school_id_number}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                      <div className="w-1 h-5 bg-amber-500 rounded-full"></div>
+                      Program Management
+                    </h3>
+                    <div className="space-y-4 bg-slate-50 rounded-xl p-5">
+                      <div className="flex justify-between items-start">
+                        <span className="text-slate-600 font-medium">Assigned Officer</span>
+                        <span className="text-slate-900 font-semibold text-right">{selectedStudent.assigned_officer_name || 'Unassigned'}</span>
+                      </div>
+                      <div className="border-t border-slate-200"></div>
+                      <div className="flex justify-between items-start">
+                        <span className="text-slate-600 font-medium">Enrollment Date</span>
+                        <span className="text-slate-900 font-semibold">{new Date(selectedStudent.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-8 pb-8 flex gap-3">
               {(user?.role === 'admin' || user?.role === 'deputy_manager' ||
                 (user?.role === 'program_officer' && selectedStudent.assigned_officer_id === user?.id)) && (
                 <button
@@ -1051,9 +1244,9 @@ Jane,Smith,jane.smith@example.com,+260966789012,Ndola,diploma,enrolled,excellent
                     setShowDetailModal(false);
                     openEditModal(selectedStudent);
                   }}
-                  className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                 >
-                  Edit Student
+                  Edit Student Profile
                 </button>
               )}
               <button
@@ -1061,7 +1254,7 @@ Jane,Smith,jane.smith@example.com,+260966789012,Ndola,diploma,enrolled,excellent
                   setShowDetailModal(false);
                   setSelectedStudent(null);
                 }}
-                className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors font-medium"
+                className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-semibold"
               >
                 Close
               </button>
