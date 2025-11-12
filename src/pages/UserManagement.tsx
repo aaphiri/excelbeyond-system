@@ -50,12 +50,20 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
     phone_number: string;
   } | null>(null);
   const [newUser, setNewUser] = useState({
-    name: '',
+    staff_id: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    gender: '',
+    phone_number: '',
     email: '',
+    profile_photo: null as File | null,
+    profile_photo_url: '',
+    username: '',
     password: '',
     role: 'program_officer' as 'admin' | 'program_officer' | 'deputy_manager' | 'flmi_senior_advisor' | 'program_manager',
     department: '',
-    phone_number: ''
+    account_status: 'active' as 'active' | 'inactive' | 'pending_verification' | 'suspended'
   });
 
   useEffect(() => {
@@ -125,12 +133,41 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
     }
   };
 
+  const handlePhotoUpload = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('staff-photos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('staff-photos')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      return null;
+    }
+  };
+
   const handleAddUser = async () => {
     try {
       setSubmitting(true);
 
-      if (!newUser.name || !newUser.email || !newUser.password) {
-        setNotification({ type: 'error', message: 'Please fill in all required fields' });
+      if (!newUser.staff_id || !newUser.first_name || !newUser.last_name || !newUser.email || !newUser.password) {
+        setNotification({ type: 'error', message: 'Please fill in all required fields (Staff ID, First Name, Last Name, Email, Password)' });
         return;
       }
 
@@ -144,16 +181,28 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
         return;
       }
 
-      const staffId = newUser.email.split('@')[0] + '_' + Date.now().toString().slice(-6);
+      let profilePhotoUrl = newUser.profile_photo_url;
+      if (newUser.profile_photo) {
+        profilePhotoUrl = await handlePhotoUpload(newUser.profile_photo);
+        if (!profilePhotoUrl) {
+          setNotification({ type: 'error', message: 'Failed to upload profile photo' });
+          return;
+        }
+      }
 
       const { data, error } = await supabase.rpc('staff_register', {
-        p_staff_id: staffId,
-        p_email: newUser.email,
+        p_staff_id: newUser.staff_id,
+        p_email: newUser.email.toLowerCase(),
         p_password: newUser.password,
-        p_name: newUser.name,
+        p_first_name: newUser.first_name,
+        p_last_name: newUser.last_name,
+        p_middle_name: newUser.middle_name || null,
+        p_gender: newUser.gender || null,
+        p_username: newUser.username || null,
         p_role: newUser.role,
         p_department: newUser.department || null,
-        p_phone_number: newUser.phone_number || null
+        p_phone_number: newUser.phone_number || null,
+        p_profile_photo_url: profilePhotoUrl || null
       });
 
       if (error) {
@@ -167,15 +216,23 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
           return;
         }
 
-        setNotification({ type: 'success', message: data.message || 'User added successfully' });
+        setNotification({ type: 'success', message: data.message || 'User added successfully and is active' });
         setShowAddModal(false);
         setNewUser({
-          name: '',
+          staff_id: '',
+          first_name: '',
+          middle_name: '',
+          last_name: '',
+          gender: '',
+          phone_number: '',
           email: '',
+          profile_photo: null,
+          profile_photo_url: '',
+          username: '',
           password: '',
           role: 'program_officer',
           department: '',
-          phone_number: ''
+          account_status: 'active'
         });
         await fetchUsers();
       } else {
@@ -897,8 +954,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
 
         {/* Add User Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-lg w-full">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-xl max-w-4xl w-full my-8">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">Add New User</h3>
@@ -910,86 +967,191 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                   </button>
                 </div>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                {/* Personal Information */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                  <input
-                    type="text"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="John Doe"
-                    required
-                  />
-                  {newUser.name && newUser.name.length < 2 && (
-                    <p className="text-xs text-red-600 mt-1">Name must be at least 2 characters</p>
-                  )}
+                  <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <UserIcon className="w-5 h-5" />
+                    Personal Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Staff ID *</label>
+                      <input
+                        type="text"
+                        value={newUser.staff_id}
+                        onChange={(e) => setNewUser({ ...newUser, staff_id: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="EMP001"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                      <select
+                        value={newUser.gender}
+                        onChange={(e) => setNewUser({ ...newUser, gender: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer_not_to_say">Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                      <input
+                        type="text"
+                        value={newUser.first_name}
+                        onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="John"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                      <input
+                        type="text"
+                        value={newUser.middle_name}
+                        onChange={(e) => setNewUser({ ...newUser, middle_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Michael"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name / Surname *</label>
+                      <input
+                        type="text"
+                        value={newUser.last_name}
+                        onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Doe"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                      <input
+                        type="tel"
+                        value={newUser.phone_number}
+                        onChange={(e) => setNewUser({ ...newUser, phone_number: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="+260 977 123 456"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                      <input
+                        type="email"
+                        value={newUser.email}
+                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value.toLowerCase() })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="john@familylegacy.zm"
+                        required
+                      />
+                      {newUser.email && !newUser.email.includes('@') && (
+                        <p className="text-xs text-red-600 mt-1">Please enter a valid email address</p>
+                      )}
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setNewUser({ ...newUser, profile_photo: file });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Upload a profile photo (JPG, PNG, max 5MB)</p>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Account & Login Information */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                  <input
-                    type="email"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value.toLowerCase() })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="john@familylegacy.zm"
-                    required
-                  />
-                  {newUser.email && !newUser.email.includes('@') && (
-                    <p className="text-xs text-red-600 mt-1">Please enter a valid email address</p>
-                  )}
+                  <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <Lock className="w-5 h-5" />
+                    Account & Login Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                      <input
+                        type="text"
+                        value={newUser.username}
+                        onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Auto-generated if empty"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Leave empty to auto-generate from name</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                      <input
+                        type="password"
+                        value={newUser.password}
+                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Minimum 6 characters"
+                        required
+                        minLength={6}
+                      />
+                      {newUser.password && newUser.password.length < 6 && (
+                        <p className="text-xs text-red-600 mt-1">Password must be at least 6 characters</p>
+                      )}
+                      {newUser.password && newUser.password.length >= 6 && (
+                        <p className="text-xs text-green-600 mt-1">✓ Password meets requirements</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">User Role *</label>
+                      <select
+                        value={newUser.role}
+                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="program_officer">Program Officer</option>
+                        <option value="deputy_manager">Deputy Manager</option>
+                        <option value="flmi_senior_advisor">FLMI Senior Advisor</option>
+                        <option value="program_manager">Program Manager</option>
+                        {user.role === 'admin' && <option value="admin">Admin</option>}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                      <input
+                        type="text"
+                        value={newUser.department}
+                        onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Student Affairs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Account Status</label>
+                      <select
+                        value={newUser.account_status}
+                        onChange={(e) => setNewUser({ ...newUser, account_status: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending_verification">Pending Verification</option>
+                        <option value="suspended">Suspended</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                  <input
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Minimum 6 characters"
-                    required
-                    minLength={6}
-                  />
-                  {newUser.password && newUser.password.length < 6 && (
-                    <p className="text-xs text-red-600 mt-1">Password must be at least 6 characters</p>
-                  )}
-                  {newUser.password && newUser.password.length >= 6 && (
-                    <p className="text-xs text-green-600 mt-1">✓ Password meets requirements</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                  <select
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="program_officer">Program Officer</option>
-                    <option value="deputy_manager">Deputy Manager</option>
-                    <option value="flmi_senior_advisor">FLMI Senior Advisor</option>
-                    <option value="program_manager">Program Manager</option>
-                    {user.role === 'admin' && <option value="admin">Admin</option>}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <input
-                    type="text"
-                    value={newUser.department}
-                    onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Student Affairs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={newUser.phone_number}
-                    onChange={(e) => setNewUser({ ...newUser, phone_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="+260 977 123 456"
-                  />
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-900">
+                    <strong>Note:</strong> User will be created as active and can immediately log into the system using their email/username and password.
+                  </p>
                 </div>
               </div>
               <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
@@ -997,12 +1159,20 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                   onClick={() => {
                     setShowAddModal(false);
                     setNewUser({
-                      name: '',
+                      staff_id: '',
+                      first_name: '',
+                      middle_name: '',
+                      last_name: '',
+                      gender: '',
+                      phone_number: '',
                       email: '',
+                      profile_photo: null,
+                      profile_photo_url: '',
+                      username: '',
                       password: '',
                       role: 'program_officer',
                       department: '',
-                      phone_number: ''
+                      account_status: 'active'
                     });
                   }}
                   disabled={submitting}
@@ -1012,7 +1182,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                 </button>
                 <button
                   onClick={handleAddUser}
-                  disabled={submitting || !newUser.name || !newUser.email || newUser.password.length < 6}
+                  disabled={submitting || !newUser.staff_id || !newUser.first_name || !newUser.last_name || !newUser.email || newUser.password.length < 6}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {submitting && (
