@@ -110,6 +110,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
           role: staff.role || 'program_officer',
           department: staff.department || 'Not assigned',
           phoneNumber: staff.phone_number,
+          profilePicture: staff.profile_photo_url,
           isActive: staff.is_active ?? true,
           lastLogin: staff.last_login,
           createdDate: staff.created_at,
@@ -868,11 +869,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
               )}
               <div className={`flex items-start justify-between mb-4 ${(user.role === 'admin' || user.role === 'program_manager') ? 'ml-8' : ''}`}>
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold text-sm sm:text-lg">
-                      {userProfile.firstName.charAt(0)}{userProfile.lastName.charAt(0)}
-                    </span>
-                  </div>
+                  {userProfile.profilePicture ? (
+                    <img
+                      src={userProfile.profilePicture}
+                      alt={userProfile.name}
+                      className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-semibold text-sm sm:text-lg">
+                        {userProfile.firstName.charAt(0)}{userProfile.lastName.charAt(0)}
+                      </span>
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{userProfile.name}</h3>
                     <p className="text-xs sm:text-sm text-gray-600 truncate">{userProfile.department}</p>
@@ -1492,26 +1501,34 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
 
         {/* User Detail Modal */}
         {selectedUser && !showEditModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-xl max-w-2xl w-full my-8">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">User Details</h3>
-                  <button 
+                  <button
                     onClick={() => setSelectedUser(null)}
                     className="text-gray-400 hover:text-gray-600"
                   >
-                    ×
+                    <X className="w-6 h-6" />
                   </button>
                 </div>
               </div>
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                 <div className="flex items-center space-x-4">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold text-2xl">
-                      {selectedUser.firstName.charAt(0)}{selectedUser.lastName.charAt(0)}
-                    </span>
-                  </div>
+                  {selectedUser.profilePicture ? (
+                    <img
+                      src={selectedUser.profilePicture}
+                      alt={selectedUser.name}
+                      className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-semibold text-2xl">
+                        {selectedUser.firstName.charAt(0)}{selectedUser.lastName.charAt(0)}
+                      </span>
+                    </div>
+                  )}
                   <div>
                     <h4 className="text-xl font-semibold text-gray-900">{selectedUser.name}</h4>
                     <p className="text-gray-600">{selectedUser.email}</p>
