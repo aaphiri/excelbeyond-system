@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Plus, 
-  Search, 
+import {
+  Users,
+  Plus,
+  Search,
   Filter,
   Edit,
   Trash2,
@@ -16,7 +16,9 @@ import {
   Phone,
   Calendar,
   MapPin,
-  User as UserIcon
+  User as UserIcon,
+  Download,
+  X
 } from 'lucide-react';
 import { User, UserProfile, Role } from '../types';
 import { supabase } from '../lib/supabase';
@@ -476,6 +478,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
       case 'admin': return 'bg-red-100 text-red-800';
       case 'program_officer': return 'bg-blue-100 text-blue-800';
       case 'deputy_manager': return 'bg-purple-100 text-purple-800';
+      case 'flmi_senior_advisor': return 'bg-orange-100 text-orange-800';
+      case 'program_manager': return 'bg-emerald-100 text-emerald-800';
       case 'student': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -502,7 +506,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
     admin: users.filter(u => u.role === 'admin').length,
     program_officer: users.filter(u => u.role === 'program_officer').length,
     deputy_manager: users.filter(u => u.role === 'deputy_manager').length,
-    student: users.filter(u => u.role === 'student').length,
+    flmi_senior_advisor: users.filter(u => u.role === 'flmi_senior_advisor').length,
+    program_manager: users.filter(u => u.role === 'program_manager').length,
     active: users.filter(u => u.isActive).length,
     inactive: users.filter(u => !u.isActive).length,
   };
@@ -598,71 +603,68 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-6">
-          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4">
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-2">
+                <Shield className="w-6 h-6 text-red-600" />
               </div>
-              <div>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{roleStats.admin}</p>
-                <p className="text-xs sm:text-sm text-gray-600">Admins</p>
-              </div>
+              <p className="text-2xl font-bold text-gray-900">{roleStats.admin}</p>
+              <p className="text-xs text-gray-600">Admins</p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-2">
+                <UserIcon className="w-6 h-6 text-blue-600" />
               </div>
-              <div>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{roleStats.program_officer}</p>
-                <p className="text-xs sm:text-sm text-gray-600">Officers</p>
-              </div>
+              <p className="text-2xl font-bold text-gray-900">{roleStats.program_officer}</p>
+              <p className="text-xs text-gray-600">Officers</p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-2">
+                <Settings className="w-6 h-6 text-purple-600" />
               </div>
-              <div>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{roleStats.deputy_manager}</p>
-                <p className="text-xs sm:text-sm text-gray-600">Managers</p>
-              </div>
+              <p className="text-2xl font-bold text-gray-900">{roleStats.deputy_manager}</p>
+              <p className="text-xs text-gray-600">Deputies</p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-2">
+                <Shield className="w-6 h-6 text-orange-600" />
               </div>
-              <div>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{roleStats.student}</p>
-                <p className="text-xs sm:text-sm text-gray-600">Students</p>
-              </div>
+              <p className="text-2xl font-bold text-gray-900">{roleStats.flmi_senior_advisor}</p>
+              <p className="text-xs text-gray-600">Advisors</p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                <Unlock className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-2">
+                <UserPlus className="w-6 h-6 text-emerald-600" />
               </div>
-              <div>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{roleStats.active}</p>
-                <p className="text-xs sm:text-sm text-gray-600">Active</p>
-              </div>
+              <p className="text-2xl font-bold text-gray-900">{roleStats.program_manager}</p>
+              <p className="text-xs text-gray-600">Managers</p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                <Lock className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-2">
+                <Unlock className="w-6 h-6 text-green-600" />
               </div>
-              <div>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{roleStats.inactive}</p>
-                <p className="text-xs sm:text-sm text-gray-600">Inactive</p>
+              <p className="text-2xl font-bold text-gray-900">{roleStats.active}</p>
+              <p className="text-xs text-gray-600">Active</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-2">
+                <Lock className="w-6 h-6 text-gray-600" />
               </div>
+              <p className="text-2xl font-bold text-gray-900">{roleStats.inactive}</p>
+              <p className="text-xs text-gray-600">Inactive</p>
             </div>
           </div>
         </div>
