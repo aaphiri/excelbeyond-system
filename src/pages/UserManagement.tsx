@@ -88,17 +88,20 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
       if (error) throw error;
 
       const formattedUsers: UserProfile[] = (data || []).map(staff => {
-        const [firstName, ...lastNameParts] = staff.name.split(' ');
+        const firstName = staff.first_name || staff.name?.split(' ')[0] || '';
+        const lastName = staff.last_name || staff.name?.split(' ').slice(1).join(' ') || '';
+        const fullName = staff.name || `${staff.first_name || ''} ${staff.middle_name ? staff.middle_name + ' ' : ''}${staff.last_name || ''}`.trim();
+
         return {
           id: staff.id,
-          name: staff.name,
+          name: fullName,
           firstName: firstName,
-          lastName: lastNameParts.join(' ') || '',
+          lastName: lastName,
           email: staff.email,
           role: staff.role || 'program_officer',
           department: staff.department || 'Not assigned',
           phoneNumber: staff.phone_number,
-          isActive: staff.is_active,
+          isActive: staff.is_active ?? true,
           lastLogin: staff.last_login,
           createdDate: staff.created_at,
           updatedDate: staff.updated_at,
