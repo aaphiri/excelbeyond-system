@@ -27,6 +27,8 @@ import UserManagement from './pages/UserManagement';
 import Settings from './pages/Settings';
 import CorporateCollaborations from './pages/CorporateCollaborations';
 import Profile from './pages/Profile';
+import InviteUser from './pages/InviteUser';
+import AcceptInvite from './pages/AcceptInvite';
 import { User } from './types';
 
 const AppContent: React.FC = () => {
@@ -58,6 +60,7 @@ const AppContent: React.FC = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -230,6 +233,14 @@ const AppContent: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/invite-user"
+              element={
+                <ProtectedRoute requiredRole="deputy_manager">
+                  <InviteUser user={legacyUser!} />
                 </ProtectedRoute>
               }
             />

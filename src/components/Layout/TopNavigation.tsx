@@ -97,6 +97,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout }) => {
   ];
 
   const adminOnlyRoutes = user.role === 'admin' || user.role === 'deputy_manager' ? [
+    { name: 'Invite User', href: '/invite-user', icon: UserCircle },
     { name: 'Yearbook Admin', href: '/yearbook-admin', icon: GraduationCap },
     { name: 'Stories Admin', href: '/impact-stories-admin', icon: Heart },
     { name: 'Settings', href: '/settings', icon: Settings },
