@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Home,
@@ -21,9 +21,14 @@ import {
   ChevronDown,
   Bell,
   LogOut,
-  Search
+  Search,
+  Mail,
+  Phone,
+  Briefcase,
+  Clock
 } from 'lucide-react';
 import { User } from '../../types';
+import { supabase } from '../../lib/supabase';
 
 interface TopNavigationProps {
   user: User;
@@ -33,6 +38,40 @@ interface TopNavigationProps {
 const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadProfileData();
+  }, [user.id]);
+
+  const loadProfileData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading profile:', error);
+        return;
+      }
+
+      if (data) {
+        setProfileData(data);
+        if (data.profile_photo_url) {
+          const photoUrl = data.profile_photo_url.startsWith('http')
+            ? data.profile_photo_url
+            : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${data.profile_photo_url}`;
+          setProfilePhotoUrl(photoUrl);
+        }
+      }
+    } catch (error) {
+      console.error('Error in loadProfileData:', error);
+    }
+  };
 
   const mainNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -165,23 +204,145 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout }) => {
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
 
-            {/* User Profile */}
-            <div className="hidden sm:flex items-center space-x-3 pl-3 border-l border-emerald-700">
-              <div className="text-right">
-                <p className="text-sm font-medium text-white truncate max-w-[120px]">{user.name}</p>
-                <p className="text-xs text-emerald-200 capitalize truncate">{user.role.replace('_', ' ')}</p>
-              </div>
-              <div className="w-9 h-9 bg-emerald-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-semibold">
-                  {user.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
+            {/* User Profile with Dropdown */}
+            <div className="hidden sm:block relative">
+              <button
+                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                className="flex items-center space-x-3 pl-3 border-l border-emerald-700 hover:bg-emerald-700 px-2 py-1 rounded-lg transition-colors"
+              >
+                <div className="text-right">
+                  <p className="text-sm font-medium text-white truncate max-w-[120px]">{user.name}</p>
+                  <p className="text-xs text-emerald-200 capitalize truncate">{user.role.replace('_', ' ')}</p>
+                </div>
+                {profilePhotoUrl ? (
+                  <img
+                    src={profilePhotoUrl}
+                    alt={user.name}
+                    className="w-9 h-9 rounded-full object-cover border-2 border-emerald-400"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      setProfilePhotoUrl(null);
+                    }}
+                  />
+                ) : (
+                  <div className="w-9 h-9 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-semibold">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <ChevronDown className="w-4 h-4 text-emerald-200" />
+              </button>
+
+              {/* Profile Dropdown */}
+              {profileDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setProfileDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-20 overflow-hidden">
+                    {/* Profile Header */}
+                    <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4">
+                      <div className="flex items-center space-x-4">
+                        {profilePhotoUrl ? (
+                          <img
+                            src={profilePhotoUrl}
+                            alt={user.name}
+                            className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+                            <span className="text-white text-2xl font-bold">
+                              {user.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-bold text-white truncate">{user.name}</h3>
+                          <p className="text-sm text-emerald-100 capitalize">{user.role.replace('_', ' ')}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Profile Details */}
+                    <div className="px-6 py-4 space-y-3">
+                      {profileData?.email && (
+                        <div className="flex items-start space-x-3">
+                          <Mail className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">Email</p>
+                            <p className="text-sm text-gray-900">{profileData.email}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {profileData?.staff_id && (
+                        <div className="flex items-start space-x-3">
+                          <UserCircle className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">Staff ID</p>
+                            <p className="text-sm text-gray-900">{profileData.staff_id}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {profileData?.department && (
+                        <div className="flex items-start space-x-3">
+                          <Briefcase className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">Department</p>
+                            <p className="text-sm text-gray-900">{profileData.department}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {profileData?.phone_number && (
+                        <div className="flex items-start space-x-3">
+                          <Phone className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">Phone</p>
+                            <p className="text-sm text-gray-900">{profileData.phone_number}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {profileData?.last_login && (
+                        <div className="flex items-start space-x-3">
+                          <Clock className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-gray-500">Last Login</p>
+                            <p className="text-sm text-gray-900">
+                              {new Date(profileData.last_login).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+                      <button
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
+                          onLogout();
+                        }}
+                        className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Logout */}
+            {/* Logout Button (Tablet/Mobile) */}
             <button
               onClick={onLogout}
-              className="p-2 text-emerald-200 hover:text-white hover:bg-emerald-700 rounded-lg transition-colors"
+              className="sm:hidden p-2 text-emerald-200 hover:text-white hover:bg-emerald-700 rounded-lg transition-colors"
               title="Logout"
               aria-label="Logout"
             >
@@ -238,17 +399,51 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout }) => {
 
             {/* Mobile User Info */}
             <div className="sm:hidden mt-4 pt-4 border-t border-emerald-700">
-              <div className="flex items-center space-x-3 px-3">
-                <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-semibold">
-                    {user.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">{user.name}</p>
-                  <p className="text-xs text-emerald-200 capitalize">{user.role.replace('_', ' ')}</p>
+              <div className="flex items-center space-x-3 px-3 mb-3">
+                {profilePhotoUrl ? (
+                  <img
+                    src={profilePhotoUrl}
+                    alt={user.name}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-lg">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                  <p className="text-xs text-emerald-200 capitalize truncate">{user.role.replace('_', ' ')}</p>
+                  {profileData?.staff_id && (
+                    <p className="text-xs text-emerald-300 mt-0.5">{profileData.staff_id}</p>
+                  )}
                 </div>
               </div>
+
+              {profileData && (
+                <div className="px-3 space-y-2 text-xs text-emerald-200">
+                  {profileData.email && (
+                    <div className="flex items-center space-x-2">
+                      <Mail className="w-3 h-3" />
+                      <span className="truncate">{profileData.email}</span>
+                    </div>
+                  )}
+                  {profileData.department && (
+                    <div className="flex items-center space-x-2">
+                      <Briefcase className="w-3 h-3" />
+                      <span>{profileData.department}</span>
+                    </div>
+                  )}
+                  {profileData.phone_number && (
+                    <div className="flex items-center space-x-2">
+                      <Phone className="w-3 h-3" />
+                      <span>{profileData.phone_number}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
