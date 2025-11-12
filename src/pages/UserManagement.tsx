@@ -37,6 +37,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [editingUser, setEditingUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    department: string;
+    phone_number: string;
+  } | null>(null);
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
@@ -180,6 +190,43 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
     }
   };
 
+  const handleUpdateUser = async () => {
+    try {
+      if (!editingUser) return;
+
+      setSubmitting(true);
+
+      if (!editingUser.name || !editingUser.email) {
+        setNotification({ type: 'error', message: 'Name and email are required' });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('staff')
+        .update({
+          name: editingUser.name,
+          email: editingUser.email.toLowerCase(),
+          role: editingUser.role,
+          department: editingUser.department || null,
+          phone_number: editingUser.phone_number || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingUser.id);
+
+      if (error) throw error;
+
+      setNotification({ type: 'success', message: 'User updated successfully' });
+      setShowEditModal(false);
+      setEditingUser(null);
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      setNotification({ type: 'error', message: error.message || 'Failed to update user' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleUpdateUserRole = async (userId: string, newRole: string) => {
     try {
       const { error } = await supabase
@@ -190,7 +237,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
       if (error) throw error;
 
       setNotification({ type: 'success', message: 'User role updated successfully' });
-      fetchUsers();
+      setShowEditModal(false);
+      await fetchUsers();
     } catch (error: any) {
       console.error('Error updating user role:', error);
       setNotification({ type: 'error', message: 'Failed to update user role' });
@@ -260,6 +308,117 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
     } catch (error: any) {
       console.error('Error setting password reset:', error);
       setNotification({ type: 'error', message: 'Failed to initiate password reset' });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUserIds.length === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${selectedUserIds.length} user(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .delete()
+        .in('id', selectedUserIds);
+
+      if (error) throw error;
+
+      setNotification({
+        type: 'success',
+        message: `Successfully deleted ${selectedUserIds.length} user(s)`
+      });
+      setSelectedUserIds([]);
+      setShowBulkActions(false);
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Error bulk deleting users:', error);
+      setNotification({ type: 'error', message: 'Failed to delete users' });
+    }
+  };
+
+  const handleBulkActivate = async (activate: boolean) => {
+    if (selectedUserIds.length === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .update({
+          is_active: activate,
+          updated_at: new Date().toISOString()
+        })
+        .in('id', selectedUserIds);
+
+      if (error) throw error;
+
+      setNotification({
+        type: 'success',
+        message: `Successfully ${activate ? 'activated' : 'deactivated'} ${selectedUserIds.length} user(s)`
+      });
+      setSelectedUserIds([]);
+      setShowBulkActions(false);
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Error bulk updating users:', error);
+      setNotification({ type: 'error', message: 'Failed to update users' });
+    }
+  };
+
+  const handleExportUsers = () => {
+    try {
+      const usersToExport = selectedUserIds.length > 0
+        ? users.filter(u => selectedUserIds.includes(u.id))
+        : filteredUsers;
+
+      const csvContent = [
+        ['Name', 'Email', 'Role', 'Department', 'Phone', 'Status', 'Last Login', 'Created Date'].join(','),
+        ...usersToExport.map(u => [
+          `"${u.name}"`,
+          u.email,
+          u.role.replace('_', ' '),
+          `"${u.department || ''}"`,
+          u.phoneNumber || '',
+          u.isActive ? 'Active' : 'Inactive',
+          u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never',
+          new Date(u.createdDate).toLocaleDateString()
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setNotification({
+        type: 'success',
+        message: `Exported ${usersToExport.length} user(s) to CSV`
+      });
+    } catch (error: any) {
+      console.error('Error exporting users:', error);
+      setNotification({ type: 'error', message: 'Failed to export users' });
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUserIds.length === filteredUsers.length) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(filteredUsers.map(u => u.id));
     }
   };
 
@@ -404,14 +563,31 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
             </div>
           </div>
           <div className="flex items-center space-x-2 mt-4 sm:mt-0">
-            <button 
+            {selectedUserIds.length > 0 && (
+              <button
+                onClick={() => setShowBulkActions(!showBulkActions)}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-blue-50 border-blue-300"
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">{selectedUserIds.length} Selected</span>
+              </button>
+            )}
+            <button
+              onClick={handleExportUsers}
+              className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              title="Export to CSV"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+            <button
               onClick={() => setShowRoleModal(true)}
               className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
             >
               <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline">Manage Roles</span>
+              <span className="hidden sm:inline">Roles</span>
             </button>
-            <button 
+            <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
@@ -491,18 +667,71 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
           </div>
         </div>
 
+        {/* Bulk Actions Bar */}
+        {showBulkActions && selectedUserIds.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl shadow-sm p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedUserIds.length} user(s) selected
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleBulkActivate(true)}
+                  className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Activate
+                </button>
+                <button
+                  onClick={() => handleBulkActivate(false)}
+                  className="px-3 py-1.5 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                >
+                  Deactivate
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedUserIds([]);
+                    setShowBulkActions(false);
+                  }}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Filters and Search */}
         <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full lg:w-80 text-sm sm:text-base"
-              />
+            <div className="flex items-center gap-3">
+              {(user.role === 'admin' || user.role === 'program_manager') && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedUserIds.length === filteredUsers.length && filteredUsers.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-600">Select All</span>
+                </label>
+              )}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full lg:w-80 text-sm sm:text-base"
+                />
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <Filter className="w-5 h-5 text-gray-400" />
@@ -515,7 +744,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                 <option value="admin">Admin</option>
                 <option value="program_officer">Program Officer</option>
                 <option value="deputy_manager">Deputy Manager</option>
-                <option value="student">Student</option>
+                <option value="flmi_senior_advisor">FLMI Senior Advisor</option>
+                <option value="program_manager">Program Manager</option>
               </select>
               <select
                 value={filterStatus}
@@ -533,8 +763,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
         {/* Users Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           {filteredUsers.map((userProfile) => (
-            <div key={userProfile.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-4 sm:p-6">
-              <div className="flex items-start justify-between mb-4">
+            <div key={userProfile.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-4 sm:p-6 relative">
+              {(user.role === 'admin' || user.role === 'program_manager') && (
+                <div className="absolute top-4 left-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedUserIds.includes(userProfile.id)}
+                    onChange={() => toggleUserSelection(userProfile.id)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              )}
+              <div className={`flex items-start justify-between mb-4 ${(user.role === 'admin' || user.role === 'program_manager') ? 'ml-8' : ''}`}>
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-semibold text-sm sm:text-lg">
@@ -608,7 +849,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                     <>
                       <button
                         onClick={() => {
-                          setSelectedUser(userProfile);
+                          setEditingUser({
+                            id: userProfile.id,
+                            name: userProfile.name,
+                            email: userProfile.email,
+                            role: userProfile.role,
+                            department: userProfile.department || '',
+                            phone_number: userProfile.phoneNumber || ''
+                          });
                           setShowEditModal(true);
                         }}
                         className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
@@ -778,17 +1026,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
           </div>
         )}
 
-        {/* Edit Role Modal */}
-        {showEditModal && selectedUser && (
+        {/* Edit User Modal */}
+        {showEditModal && editingUser && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-lg w-full">
+            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Edit User Role</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
                   <button
                     onClick={() => {
                       setShowEditModal(false);
-                      setSelectedUser(null);
+                      setEditingUser(null);
                     }}
                     className="text-gray-400 hover:text-gray-600"
                   >
@@ -796,63 +1044,134 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                   </button>
                 </div>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-6">
+                {/* Basic Information */}
                 <div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Update role for: <span className="font-medium text-gray-900">{selectedUser.name}</span>
-                  </p>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select
-                    defaultValue={selectedUser.role}
-                    onChange={(e) => handleUpdateUserRole(selectedUser.id, e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="program_officer">Program Officer</option>
-                    <option value="deputy_manager">Deputy Manager</option>
-                    <option value="flmi_senior_advisor">FLMI Senior Advisor</option>
-                    <option value="program_manager">Program Manager</option>
-                    {user.role === 'admin' && <option value="admin">Admin</option>}
-                  </select>
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-medium text-blue-900 mb-2">Role Permissions</h4>
-                  <div className="space-y-1 text-sm text-blue-800">
-                    {getRolePermissions(selectedUser.role).map((perm, index) => (
-                      <div key={index}>• {perm}</div>
-                    ))}
+                  <h4 className="font-medium text-gray-900 mb-4">Basic Information</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                      <input
+                        type="text"
+                        value={editingUser.name}
+                        onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="John Doe"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        value={editingUser.email}
+                        onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value.toLowerCase() })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="john@familylegacy.zm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <input
+                        type="tel"
+                        value={editingUser.phone_number}
+                        onChange={(e) => setEditingUser({ ...editingUser, phone_number: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="+260 977 123 456"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                      <input
+                        type="text"
+                        value={editingUser.department}
+                        onChange={(e) => setEditingUser({ ...editingUser, department: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Student Affairs"
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleResetPassword(selectedUser.id, selectedUser.email)}
-                    className="flex-1 px-4 py-2 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50"
-                  >
-                    Reset Password
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleToggleUserStatus(selectedUser.id, selectedUser.isActive);
-                      setShowEditModal(false);
-                    }}
-                    className={`flex-1 px-4 py-2 rounded-lg ${
-                      selectedUser.isActive
-                        ? 'border border-red-300 text-red-700 hover:bg-red-50'
-                        : 'border border-green-300 text-green-700 hover:bg-green-50'
-                    }`}
-                  >
-                    {selectedUser.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
+
+                {/* Role & Permissions */}
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-4">Role & Permissions</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                      <select
+                        value={editingUser.role}
+                        onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="program_officer">Program Officer</option>
+                        <option value="deputy_manager">Deputy Manager</option>
+                        <option value="flmi_senior_advisor">FLMI Senior Advisor</option>
+                        <option value="program_manager">Program Manager</option>
+                        {user.role === 'admin' && <option value="admin">Admin</option>}
+                      </select>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h5 className="font-medium text-blue-900 mb-2">Current Role Permissions</h5>
+                      <div className="space-y-1 text-sm text-blue-800">
+                        {getRolePermissions(editingUser.role).map((perm, index) => (
+                          <div key={index}>• {perm}</div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account Actions */}
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-4">Account Actions</h4>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        handleResetPassword(editingUser.id, editingUser.email);
+                      }}
+                      className="flex-1 px-4 py-2 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 flex items-center justify-center gap-2"
+                    >
+                      <Lock className="w-4 h-4" />
+                      Reset Password
+                    </button>
+                    <button
+                      onClick={() => {
+                        const userToToggle = users.find(u => u.id === editingUser.id);
+                        if (userToToggle) {
+                          handleToggleUserStatus(editingUser.id, userToToggle.isActive);
+                        }
+                      }}
+                      className="flex-1 px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 flex items-center justify-center gap-2"
+                    >
+                      <Lock className="w-4 h-4" />
+                      {users.find(u => u.id === editingUser.id)?.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="p-6 border-t border-gray-200 flex justify-end">
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
                 <button
                   onClick={() => {
                     setShowEditModal(false);
-                    setSelectedUser(null);
+                    setEditingUser(null);
                   }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  disabled={submitting}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Close
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateUser}
+                  disabled={submitting || !editingUser.name || !editingUser.email}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {submitting && (
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {submitting ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
