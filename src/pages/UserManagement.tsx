@@ -43,11 +43,20 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [editingUser, setEditingUser] = useState<{
     id: string;
-    name: string;
+    staff_id: string;
+    first_name: string;
+    middle_name: string;
+    last_name: string;
+    gender: string;
+    phone_number: string;
     email: string;
+    profile_photo: File | null;
+    profile_photo_url: string;
+    username: string;
     role: string;
     department: string;
-    phone_number: string;
+    account_status: string;
+    is_active: boolean;
   } | null>(null);
   const [newUser, setNewUser] = useState({
     staff_id: '',
@@ -258,19 +267,39 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
 
       setSubmitting(true);
 
-      if (!editingUser.name || !editingUser.email) {
-        setNotification({ type: 'error', message: 'Name and email are required' });
+      if (!editingUser.first_name || !editingUser.last_name || !editingUser.email) {
+        setNotification({ type: 'error', message: 'First name, last name, and email are required' });
         return;
       }
+
+      let profilePhotoUrl = editingUser.profile_photo_url;
+      if (editingUser.profile_photo) {
+        profilePhotoUrl = await handlePhotoUpload(editingUser.profile_photo);
+        if (!profilePhotoUrl) {
+          setNotification({ type: 'error', message: 'Failed to upload profile photo' });
+          return;
+        }
+      }
+
+      const fullName = `${editingUser.first_name} ${editingUser.middle_name ? editingUser.middle_name + ' ' : ''}${editingUser.last_name}`.trim();
 
       const { error } = await supabase
         .from('staff')
         .update({
-          name: editingUser.name,
+          staff_id: editingUser.staff_id,
+          first_name: editingUser.first_name,
+          middle_name: editingUser.middle_name || null,
+          last_name: editingUser.last_name,
+          name: fullName,
+          gender: editingUser.gender || null,
           email: editingUser.email.toLowerCase(),
+          username: editingUser.username || null,
           role: editingUser.role,
           department: editingUser.department || null,
           phone_number: editingUser.phone_number || null,
+          profile_photo_url: profilePhotoUrl || null,
+          account_status: editingUser.account_status,
+          is_active: editingUser.is_active,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingUser.id);
@@ -910,16 +939,33 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                   {(user.role === 'admin' || user.role === 'program_manager') && (
                     <>
                       <button
-                        onClick={() => {
-                          setEditingUser({
-                            id: userProfile.id,
-                            name: userProfile.name,
-                            email: userProfile.email,
-                            role: userProfile.role,
-                            department: userProfile.department || '',
-                            phone_number: userProfile.phoneNumber || ''
-                          });
-                          setShowEditModal(true);
+                        onClick={async () => {
+                          const { data: staffData } = await supabase
+                            .from('staff')
+                            .select('*')
+                            .eq('id', userProfile.id)
+                            .single();
+
+                          if (staffData) {
+                            setEditingUser({
+                              id: staffData.id,
+                              staff_id: staffData.staff_id,
+                              first_name: staffData.first_name || staffData.name?.split(' ')[0] || '',
+                              middle_name: staffData.middle_name || '',
+                              last_name: staffData.last_name || staffData.name?.split(' ').slice(1).join(' ') || '',
+                              gender: staffData.gender || '',
+                              phone_number: staffData.phone_number || '',
+                              email: staffData.email,
+                              profile_photo: null,
+                              profile_photo_url: staffData.profile_photo_url || '',
+                              username: staffData.username || '',
+                              role: staffData.role,
+                              department: staffData.department || '',
+                              account_status: staffData.account_status || 'active',
+                              is_active: staffData.is_active ?? true
+                            });
+                            setShowEditModal(true);
+                          }
                         }}
                         className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
                         title="Edit User"
@@ -1203,8 +1249,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
 
         {/* Edit User Modal */}
         {showEditModal && editingUser && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-xl max-w-4xl w-full my-8">
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
@@ -1219,33 +1265,73 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                   </button>
                 </div>
               </div>
-              <div className="p-6 space-y-6">
-                {/* Basic Information */}
+              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                {/* Personal Information */}
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-4">Basic Information</h4>
-                  <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <UserIcon className="w-5 h-5" />
+                    Personal Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Staff ID *</label>
                       <input
                         type="text"
-                        value={editingUser.name}
-                        onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                        value={editingUser.staff_id}
+                        onChange={(e) => setEditingUser({ ...editingUser, staff_id: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="John Doe"
+                        placeholder="EMP001"
+                        required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                      <select
+                        value={editingUser.gender}
+                        onChange={(e) => setEditingUser({ ...editingUser, gender: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer_not_to_say">Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                       <input
-                        type="email"
-                        value={editingUser.email}
-                        onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value.toLowerCase() })}
+                        type="text"
+                        value={editingUser.first_name}
+                        onChange={(e) => setEditingUser({ ...editingUser, first_name: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="john@familylegacy.zm"
+                        placeholder="John"
+                        required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                      <input
+                        type="text"
+                        value={editingUser.middle_name}
+                        onChange={(e) => setEditingUser({ ...editingUser, middle_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Michael"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name / Surname *</label>
+                      <input
+                        type="text"
+                        value={editingUser.last_name}
+                        onChange={(e) => setEditingUser({ ...editingUser, last_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Doe"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
                       <input
                         type="tel"
                         value={editingUser.phone_number}
@@ -1254,25 +1340,62 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                         placeholder="+260 977 123 456"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
                       <input
-                        type="text"
-                        value={editingUser.department}
-                        onChange={(e) => setEditingUser({ ...editingUser, department: e.target.value })}
+                        type="email"
+                        value={editingUser.email}
+                        onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value.toLowerCase() })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Student Affairs"
+                        placeholder="john@familylegacy.zm"
+                        required
                       />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
+                      {editingUser.profile_photo_url && (
+                        <div className="mb-2">
+                          <img
+                            src={editingUser.profile_photo_url}
+                            alt="Current profile"
+                            className="w-20 h-20 rounded-full object-cover"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Current photo</p>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setEditingUser({ ...editingUser, profile_photo: file });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Upload a new profile photo to replace current (JPG, PNG, max 5MB)</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Role & Permissions */}
+                {/* Account & Login Information */}
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-4">Role & Permissions</h4>
-                  <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <Lock className="w-5 h-5" />
+                    Account & Login Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                      <input
+                        type="text"
+                        value={editingUser.username}
+                        onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="john.doe"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">User Role *</label>
                       <select
                         value={editingUser.role}
                         onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
@@ -1285,13 +1408,39 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                         {user.role === 'admin' && <option value="admin">Admin</option>}
                       </select>
                     </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h5 className="font-medium text-blue-900 mb-2">Current Role Permissions</h5>
-                      <div className="space-y-1 text-sm text-blue-800">
-                        {getRolePermissions(editingUser.role).map((perm, index) => (
-                          <div key={index}>• {perm}</div>
-                        ))}
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                      <input
+                        type="text"
+                        value={editingUser.department}
+                        onChange={(e) => setEditingUser({ ...editingUser, department: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Student Affairs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Account Status</label>
+                      <select
+                        value={editingUser.account_status}
+                        onChange={(e) => setEditingUser({ ...editingUser, account_status: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending_verification">Pending Verification</option>
+                        <option value="suspended">Suspended</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={editingUser.is_active}
+                          onChange={(e) => setEditingUser({ ...editingUser, is_active: e.target.checked })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">User is Active (can log in)</span>
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -1309,18 +1458,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                       <Lock className="w-4 h-4" />
                       Reset Password
                     </button>
-                    <button
-                      onClick={() => {
-                        const userToToggle = users.find(u => u.id === editingUser.id);
-                        if (userToToggle) {
-                          handleToggleUserStatus(editingUser.id, userToToggle.isActive);
-                        }
-                      }}
-                      className="flex-1 px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 flex items-center justify-center gap-2"
-                    >
-                      <Lock className="w-4 h-4" />
-                      {users.find(u => u.id === editingUser.id)?.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
                   </div>
                 </div>
               </div>
@@ -1331,14 +1468,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
                     setEditingUser(null);
                   }}
                   disabled={submitting}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdateUser}
-                  disabled={submitting || !editingUser.name || !editingUser.email}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                  disabled={submitting || !editingUser.first_name || !editingUser.last_name || !editingUser.email}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {submitting && (
                     <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
