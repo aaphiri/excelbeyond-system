@@ -270,6 +270,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
 
       if (!editingUser.first_name || !editingUser.last_name || !editingUser.email) {
         setNotification({ type: 'error', message: 'First name, last name, and email are required' });
+        setSubmitting(false);
         return;
       }
 
@@ -278,13 +279,23 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
         profilePhotoUrl = await handlePhotoUpload(editingUser.profile_photo);
         if (!profilePhotoUrl) {
           setNotification({ type: 'error', message: 'Failed to upload profile photo' });
+          setSubmitting(false);
           return;
         }
       }
 
       const fullName = `${editingUser.first_name} ${editingUser.middle_name ? editingUser.middle_name + ' ' : ''}${editingUser.last_name}`.trim();
 
-      const { error } = await supabase
+      console.log('Updating user with ID:', editingUser.id);
+      console.log('Update data:', {
+        staff_id: editingUser.staff_id,
+        first_name: editingUser.first_name,
+        last_name: editingUser.last_name,
+        email: editingUser.email,
+        role: editingUser.role
+      });
+
+      const { data, error } = await supabase
         .from('staff')
         .update({
           staff_id: editingUser.staff_id,
@@ -303,7 +314,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ user }) => {
           is_active: editingUser.is_active,
           updated_at: new Date().toISOString()
         })
-        .eq('id', editingUser.id);
+        .eq('id', editingUser.id)
+        .select();
+
+      console.log('Update result:', { data, error });
 
       if (error) throw error;
 
