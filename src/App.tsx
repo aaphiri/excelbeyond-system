@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Sidebar from './components/Layout/Sidebar';
-import Header from './components/Layout/Header';
+import TopNavigation from './components/Layout/TopNavigation';
 import GoogleLoginPage from './pages/GoogleLoginPage';
 import StaffLoginPage from './pages/StaffLoginPage';
 import ForgotPassword from './pages/ForgotPassword';
@@ -31,7 +30,6 @@ import { User } from './types';
 
 const AppContent: React.FC = () => {
   const { user: authUser, signOut, loading } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const legacyUser: User | null = authUser ? {
     id: authUser.id,
@@ -66,19 +64,12 @@ const AppContent: React.FC = () => {
 
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      <TopNavigation
         user={legacyUser!}
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        onLogout={signOut}
       />
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <Header
-          user={legacyUser!}
-          onLogout={signOut}
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
-        />
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-3 sm:p-4 md:p-6 custom-scrollbar">
+      <main className="flex-1 overflow-y-auto bg-gray-50 p-3 sm:p-4 md:p-6 custom-scrollbar">
           <Routes>
             <Route path="/login" element={<Navigate to="/dashboard" replace />} />
             <Route
@@ -236,7 +227,6 @@ const AppContent: React.FC = () => {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
-      </div>
     </div>
   );
 };
