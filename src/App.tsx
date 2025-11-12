@@ -26,6 +26,7 @@ import ImpactStoriesAdmin from './pages/ImpactStoriesAdmin';
 import UserManagement from './pages/UserManagement';
 import Settings from './pages/Settings';
 import CorporateCollaborations from './pages/CorporateCollaborations';
+import Profile from './pages/Profile';
 import { User } from './types';
 
 const AppContent: React.FC = () => {
@@ -221,6 +222,14 @@ const AppContent: React.FC = () => {
               element={
                 <ProtectedRoute requiredRole="admin">
                   <Settings user={legacyUser!} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />

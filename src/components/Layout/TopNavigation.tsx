@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Home,
   Users,
@@ -25,7 +25,8 @@ import {
   Mail,
   Phone,
   Briefcase,
-  Clock
+  Clock,
+  Edit
 } from 'lucide-react';
 import { User } from '../../types';
 import { supabase } from '../../lib/supabase';
@@ -36,6 +37,7 @@ interface TopNavigationProps {
 }
 
 const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout }) => {
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -322,7 +324,17 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ user, onLogout }) => {
                     </div>
 
                     {/* Actions */}
-                    <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+                    <div className="border-t border-gray-200 px-4 py-3 bg-gray-50 space-y-2">
+                      <button
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
+                          navigate('/profile');
+                        }}
+                        className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Edit Profile</span>
+                      </button>
                       <button
                         onClick={() => {
                           setProfileDropdownOpen(false);
